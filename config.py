@@ -2,25 +2,25 @@ import json
 import os
 
 class ConfigLoader:
-    def __init__(self, default_config: dict):
-        self.default_config = default_config
-        self.config = default_config.copy()
+    def __init__(self, default_config_path, user_config_path):
+        self.default_config = self.load_config(default_config_path)
+        self.user_config = self.load_config(user_config_path)
+        self.final_config = self.merge_configs(self.default_config, self.user_config)
 
-    def load_from_file(self, filepath: str):
-        if os.path.isfile(filepath):
-            with open(filepath, 'r') as f:
-                file_config = json.load(f)
-            self.config.update(file_config)
+    def load_config(self, path):
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                return json.load(f)
+        return {}
 
-    def get(self, key: str, default=None):
-        return self.config.get(key, default)
+    def merge_configs(self, default, user):
+        final = default.copy()
+        final.update(user)
+        return final
 
-    def set(self, key: str, value):
-        self.config[key] = value
+    def get(self, key, default=None):
+        return self.final_config.get(key, default)
 
 if __name__ == '__main__':
-    defaults = {'setting1': 'value1', 'setting2': 'value2'}
-    loader = ConfigLoader(defaults)
-    loader.load_from_file('config.json')
-    print(loader.get('setting1'))
-    print(loader.get('setting3', 'default_value'))
+    config_loader = ConfigLoader('default_config.json', 'user_config.json')
+    print(config_loader.get('some_key', 'default_value'))
