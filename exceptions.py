@@ -1,40 +1,31 @@
-class GameDataError(Exception):
-    """Custom exception for game data errors."""
-    def __init__(self, message: str):
+class GameError(Exception):
+    """
+    Exception raised for errors in the game.
+    """
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+class PlayerNotFoundError(GameError):
+    """
+    Exception raised when a player is not found.
+    """
+    def __init__(self, player_name: str) -> None:
+        message = f"Player '{player_name}' not found."
         super().__init__(message)
 
-class InvalidPlayerData(GameDataError):
-    """Exception raised for invalid player data."""
-    pass
+class GameAlreadyStartedError(GameError):
+    """
+    Exception raised when trying to start a game that's already started.
+    """
+    def __init__(self, game_id: int) -> None:
+        message = f"Game with ID {game_id} has already started."
+        super().__init__(message)
 
-class DataNotFound(GameDataError):
-    """Exception raised when data cannot be found."""
-    pass
-
-class InvalidGameState(GameDataError):
-    """Exception raised for invalid game state operations."""
-    pass
-
-class GameData:
-    def __init__(self):
-        self.players = {}
-
-    def add_player(self, player_id: str, player_info: dict):
-        if player_id in self.players:
-            raise InvalidPlayerData(f"Player with ID {player_id} already exists.")
-        self.players[player_id] = player_info
-
-    def get_player(self, player_id: str) -> dict:
-        if player_id not in self.players:
-            raise DataNotFound(f"No player found with ID {player_id}.")
-        return self.players[player_id]
-
-    def update_player(self, player_id: str, player_info: dict):
-        if player_id not in self.players:
-            raise DataNotFound(f"No player found with ID {player_id}.")
-        self.players[player_id].update(player_info)
-
-    def reset_game_state(self):
-        if not self.players:
-            raise InvalidGameState("Cannot reset game state with no players.")
-        self.players.clear()
+class InvalidMoveError(GameError):
+    """
+    Exception raised for invalid moves in the game.
+    """
+    def __init__(self, move: str) -> None:
+        message = f"The move '{move}' is not valid."
+        super().__init__(message)
