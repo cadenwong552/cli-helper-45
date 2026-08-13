@@ -1,14 +1,20 @@
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 
-class Logger:
-    def __init__(self, name='cli-helper-45'):
+class CustomLogger:
+    def __init__(self, name, log_file='app.log', max_size=5*1024*1024, backup_count=3):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
-        self.handler = RotatingFileHandler('app.log', maxBytes=5*1024*1024, backupCount=5)
-        self.formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        self.handler.setFormatter(self.formatter)
-        self.logger.addHandler(self.handler)
+        self._add_rotating_handler(log_file, max_size, backup_count)
+
+    def _add_rotating_handler(self, log_file, max_size, backup_count):
+        if not os.path.exists(os.path.dirname(log_file)):
+            os.makedirs(os.path.dirname(log_file))
+        handler = RotatingFileHandler(log_file, maxBytes=max_size, backupCount=backup_count)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
     def debug(self, message):
         self.logger.debug(message)
@@ -25,4 +31,7 @@ class Logger:
     def critical(self, message):
         self.logger.critical(message)
 
-logger = Logger()
+# Example usage, instantiate logger
+if __name__ == '__main__':
+    logger = CustomLogger('cli-helper-45')
+    logger.info('Logger setup complete.')
