@@ -1,37 +1,32 @@
 import logging
-import os
-from logging.handlers import RotatingFileHandler
 
-class CustomLogger:
-    def __init__(self, name, log_file='app.log', max_size=5*1024*1024, backup_count=3):
+class GameLogger:
+    def __init__(self, name):
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        self._add_rotating_handler(log_file, max_size, backup_count)
-
-    def _add_rotating_handler(self, log_file, max_size, backup_count):
-        if not os.path.exists(os.path.dirname(log_file)):
-            os.makedirs(os.path.dirname(log_file))
-        handler = RotatingFileHandler(log_file, maxBytes=max_size, backupCount=backup_count)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler = logging.FileHandler(f'{name}.log')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
+        self.logger.setLevel(logging.INFO)
 
-    def debug(self, message):
-        self.logger.debug(message)
-
-    def info(self, message):
+    def log_info(self, message):
         self.logger.info(message)
 
-    def warning(self, message):
+    def log_warning(self, message):
         self.logger.warning(message)
 
-    def error(self, message):
+    def log_error(self, message):
         self.logger.error(message)
 
-    def critical(self, message):
-        self.logger.critical(message)
-
-# Example usage, instantiate logger
 if __name__ == '__main__':
-    logger = CustomLogger('cli-helper-45')
-    logger.info('Logger setup complete.')
+    logger = GameLogger('game_events')
+    try:
+        user_input = input('Enter command: ')
+        if not user_input:
+            raise ValueError('Input cannot be empty')
+        elif len(user_input) > 100:
+            raise ValueError('Input too long')
+        logger.log_info(f'User entered: {user_input}')
+    except ValueError as e:
+        logger.log_error(f'Input validation error: {e}')
+        print('Error:', e)
