@@ -1,22 +1,33 @@
-import json
 import os
+import json
 
-class ConfigLoader:
-    def __init__(self, default_config_path: str, user_config_path: str):
-        self.default_config = self.load_config(default_config_path)
-        self.user_config = self.load_config(user_config_path)
+class Config:
+    def __init__(self, filename='config.json'):
+        self.filename = filename
+        self.config_data = self.load_config()
 
-    def load_config(self, path: str) -> dict:
-        if os.path.exists(path):
-            with open(path, 'r') as file:
-                return json.load(file)
-        return {}
+    def load_config(self):
+        if not os.path.exists(self.filename):
+            return {}
+        with open(self.filename, 'r') as file:
+            return json.load(file)
 
-    def get_config(self) -> dict:
-        combined_config = self.default_config.copy()
-        combined_config.update(self.user_config)
-        return combined_config
+    def save_config(self):
+        with open(self.filename, 'w') as file:
+            json.dump(self.config_data, file, indent=4)
 
-# Example Usage:
-# loader = ConfigLoader('default_config.json', 'user_config.json')
-# config = loader.get_config()  # Merges default and user configs
+    def get(self, key, default=None):
+        return self.config_data.get(key, default)
+
+    def set(self, key, value):
+        self.config_data[key] = value
+        self.save_config()  
+
+    def all(self):
+        return self.config_data
+
+if __name__ == '__main__':
+    config = Config()
+    config.set('resolution', '1920x1080')
+    print(config.get('resolution'))
+    print(config.all())
