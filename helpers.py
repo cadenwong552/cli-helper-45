@@ -1,33 +1,43 @@
-import logging
-from logging.handlers import RotatingFileHandler
+from typing import List, Dict
 
-class Logger:
-    def __init__(self, name='cli_helper', log_file='cli_helper.log', max_bytes=5 * 1024 * 1024, backup_count=3):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
 
-    def debug(self, message):
-        self.logger.debug(message)
+def calculate_score(player_actions: List[str]) -> Dict[str, int]:
+    """
+    Calculate the total score based on player actions.
 
-    def info(self, message):
-        self.logger.info(message)
+    Args:
+        player_actions (List[str]): A list of actions performed by the player.
 
-    def warning(self, message):
-        self.logger.warning(message)
+    Returns:
+        Dict[str, int]: A dictionary with action names as keys and their respective scores as values.
+    """
+    score: Dict[str, int] = {}
+    score['attack'] = sum(1 for action in player_actions if action == 'attack') * 10
+    score['defend'] = sum(1 for action in player_actions if action == 'defend') * 5
+    score['heal'] = sum(1 for action in player_actions if action == 'heal') * 8
+    return score
 
-    def error(self, message):
-        self.logger.error(message)
 
-    def critical(self, message):
-        self.logger.critical(message)
+def apply_bonus(score: Dict[str, int], bonus_multiplier: float) -> Dict[str, int]:
+    """
+    Apply a bonus multiplier to the scores.
 
-logger = Logger()  # Instantiate the logger
+    Args:
+        score (Dict[str, int]): The current score of the player.
+        bonus_multiplier (float): The multiplier to apply to the score.
 
-# Example usage:
-logger.info('This is an info message.')
-logger.debug('This is a debug message.')
-logger.error('This is an error message.')
+    Returns:
+        Dict[str, int]: The updated score after applying the bonus.
+    """
+    return {action: int(value * bonus_multiplier) for action, value in score.items()}
+
+
+def display_scores(score: Dict[str, int]) -> None:
+    """
+    Print the scores in a formatted way.
+    
+    Args:
+        score (Dict[str, int]): The scores to display.
+    """
+    for action, value in score.items():
+        print(f"{action.capitalize()}: {value}")
