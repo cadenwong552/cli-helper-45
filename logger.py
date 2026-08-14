@@ -1,32 +1,23 @@
 import logging
+import time
 
-class GameLogger:
+class PerformanceLogger:
     def __init__(self, name):
         self.logger = logging.getLogger(name)
-        handler = logging.FileHandler(f'{name}.log')
+        handler = logging.StreamHandler()
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
 
-    def log_info(self, message):
-        self.logger.info(message)
+    def log_performance(self, func):
+        def wrapper(*args, **kwargs):
+            start_time = time.perf_counter()
+            result = func(*args, **kwargs)
+            end_time = time.perf_counter()
+            elapsed_time = end_time - start_time
+            self.logger.info(f'Executed {func.__name__} in {elapsed_time:.4f} seconds')
+            return result
+        return wrapper
 
-    def log_warning(self, message):
-        self.logger.warning(message)
-
-    def log_error(self, message):
-        self.logger.error(message)
-
-if __name__ == '__main__':
-    logger = GameLogger('game_events')
-    try:
-        user_input = input('Enter command: ')
-        if not user_input:
-            raise ValueError('Input cannot be empty')
-        elif len(user_input) > 100:
-            raise ValueError('Input too long')
-        logger.log_info(f'User entered: {user_input}')
-    except ValueError as e:
-        logger.log_error(f'Input validation error: {e}')
-        print('Error:', e)
+performance_logger = PerformanceLogger(__name__)
