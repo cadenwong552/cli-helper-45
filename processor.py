@@ -1,32 +1,24 @@
-import json
-import random
-import re
-
-def validate_input(user_input):
-    return bool(re.match("^[a-zA-Z0-9_]{3,16}$", user_input))
+import time
 
 class GameProcessor:
-    def __init__(self):
-        self.active = True
-        self.players = []
+    def __init__(self, initial_data):
+        self.data = initial_data
+        self.results = []
 
-    def add_player(self, name):
-        if validate_input(name):
-            self.players.append(name)
-            return True
-        return False
+    def process_data(self):
+        start = time.perf_counter()
+        self.results = [self.expensive_operation(d) for d in self.data]
+        end = time.perf_counter()
+        print(f'Processing time: {end - start:.4f} seconds')
 
-    def process_loop(self):
-        while self.active:
-            user_input = input("Enter player name (or 'quit' to exit): ").strip()
-            if user_input.lower() == 'quit':
-                self.active = False
-                break
-            if self.add_player(user_input):
-                print(f"Player '{user_input}' added.")
-            else:
-                print("Invalid input. Please use 3-16 alphanumeric characters or underscores.")
+    def expensive_operation(self, d):
+        return d ** 2  # Simulating heavy computation
 
+    def get_results(self):
+        return self.results
+
+# Sample usage
 if __name__ == '__main__':
-    processor = GameProcessor()
-    processor.process_loop()
+    processor = GameProcessor(range(10000))
+    processor.process_data()
+    print(processor.get_results()[:10])  # Print first 10 results
