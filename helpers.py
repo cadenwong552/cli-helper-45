@@ -1,27 +1,33 @@
-import json
-import os
+import logging
+from logging.handlers import RotatingFileHandler
 
-def load_config(file_path, defaults):
-    if not os.path.exists(file_path):
-        return defaults
-    with open(file_path, 'r') as f:
-        config = json.load(f)
-    return {**defaults, **config}
+class Logger:
+    def __init__(self, name='cli_helper', log_file='cli_helper.log', max_bytes=5 * 1024 * 1024, backup_count=3):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-def save_config(file_path, config):
-    with open(file_path, 'w') as f:
-        json.dump(config, f, indent=4)
+    def debug(self, message):
+        self.logger.debug(message)
 
-if __name__ == '__main__':
-    default_config = {
-        'resolution': '1920x1080',
-        'volume': 70,
-        'controls': {
-            'jump': 'space',
-            'shoot': 'ctrl'
-        }
-    }
-    config_path = 'game_config.json'
-    config = load_config(config_path, default_config)
-    print(config)
-    save_config(config_path, config)
+    def info(self, message):
+        self.logger.info(message)
+
+    def warning(self, message):
+        self.logger.warning(message)
+
+    def error(self, message):
+        self.logger.error(message)
+
+    def critical(self, message):
+        self.logger.critical(message)
+
+logger = Logger()  # Instantiate the logger
+
+# Example usage:
+logger.info('This is an info message.')
+logger.debug('This is a debug message.')
+logger.error('This is an error message.')
