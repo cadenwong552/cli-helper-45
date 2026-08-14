@@ -1,30 +1,35 @@
-def validate_username(username):
-    if not isinstance(username, str):
-        raise ValueError('Username must be a string')
-    if not (3 <= len(username) <= 20):
-        raise ValueError('Username must be between 3 and 20 characters')
-    if not username.isalnum():
-        raise ValueError('Username must only contain alphanumeric characters')
+import json
+import re
+
+def validate_player_name(name):
+    if not isinstance(name, str) or len(name) < 3:
+        raise ValueError("Player name must be a string of at least 3 characters.")
+    if not re.match("^[A-Za-z0-9_]*$", name):
+        raise ValueError("Player name can only contain alphanumeric characters and underscores.")
     return True
 
-
-def validate_password(password):
-    if not isinstance(password, str):
-        raise ValueError('Password must be a string')
-    if len(password) < 8:
-        raise ValueError('Password must be at least 8 characters long')
-    if not any(char.isdigit() for char in password):
-        raise ValueError('Password must contain at least one digit')
-    if not any(char.isupper() for char in password):
-        raise ValueError('Password must contain at least one uppercase letter')
+def validate_score(score):
+    if not isinstance(score, (int, float)):
+        raise ValueError("Score must be a number.")
+    if score < 0:
+        raise ValueError("Score cannot be negative.")
     return True
 
-
-def validate_email(email):
-    import re
-    if not isinstance(email, str):
-        raise ValueError('Email must be a string')
-    email_regex = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-    if not email_regex.match(email):
-        raise ValueError('Invalid email format')
+def validate_game_data(data):
+    if not isinstance(data, dict):
+        raise ValueError("Game data must be a dictionary.")
+    required_keys = ['player_name', 'score']
+    for key in required_keys:
+        if key not in data:
+            raise ValueError(f"Missing required key: {key}")
+    validate_player_name(data['player_name'])
+    validate_score(data['score'])
     return True
+
+if __name__ == '__main__':
+    sample_data = {"player_name": "Player1", "score": 150}
+    try:
+        validate_game_data(sample_data)
+        print(json.dumps({"status": "success", "data": sample_data}))
+    except ValueError as e:
+        print(json.dumps({"status": "error", "message": str(e)}))
