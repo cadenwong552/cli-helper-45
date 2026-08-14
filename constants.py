@@ -1,40 +1,37 @@
-from typing import Final
+import json
+import os
 
-# Game constants
+class ConfigLoader:
+    DEFAULT_CONFIG = {
+        'volume': 50,
+        'difficulty': 'normal',
+        'screen_resolution': '1920x1080',
+        'fullscreen': True,
+        'key_bindings': {
+            'move_forward': 'W',
+            'move_backward': 'S',
+            'turn_left': 'A',
+            'turn_right': 'D'
+        }
+    }
 
-PLAYER_MAX_HEALTH: Final[int] = 100
-PLAYER_MIN_HEALTH: Final[int] = 0
-ENEMY_MAX_HEALTH: Final[int] = 150
-ENEMY_MIN_HEALTH: Final[int] = 50
+    def __init__(self, config_file='config.json'):
+        self.config_file = config_file
+        self.config = self.load_config()
 
-# Item constants
+    def load_config(self):
+        if os.path.exists(self.config_file):
+            with open(self.config_file, 'r') as f:
+                user_config = json.load(f)
+            return {**self.DEFAULT_CONFIG, **user_config}
+        return self.DEFAULT_CONFIG
 
-ITEM_HEALTH_POTION: Final[int] = 20
-ITEM_MANA_POTION: Final[int] = 15
+    def get(self, key):
+        return self.config.get(key, None)
 
-# Game settings
+    def set(self, key, value):
+        self.config[key] = value
 
-FPS: Final[int] = 60
-MAX_PLAYERS: Final[int] = 4
-
-# Game states
-
-class GameState:
-    MAIN_MENU: str = 'main_menu'
-    IN_GAME: str = 'in_game'
-    GAME_OVER: str = 'game_over'
-
-    @classmethod
-    def get_states(cls) -> list[str]:
-        return [cls.MAIN_MENU, cls.IN_GAME, cls.GAME_OVER]  
-
-# Player roles
-
-class PlayerRole:
-    WARRIOR: str = 'warrior'
-    MAGE: str = 'mage'
-    ARCHER: str = 'archer'
-
-    @classmethod
-    def get_roles(cls) -> list[str]:
-        return [cls.WARRIOR, cls.MAGE, cls.ARCHER]
+    def save(self):
+        with open(self.config_file, 'w') as f:
+            json.dump(self.config, f, indent=4)
