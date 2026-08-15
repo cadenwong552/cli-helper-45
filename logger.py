@@ -1,23 +1,29 @@
 import logging
-import time
+from logging.handlers import RotatingFileHandler
 
-class PerformanceLogger:
-    def __init__(self, name):
+class Logger:
+    def __init__(self, name, level=logging.DEBUG, max_bytes=5*1024*1024, backup_count=5):
         self.logger = logging.getLogger(name)
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        self.logger.setLevel(level)
+        
+        handler = RotatingFileHandler('game.log', maxBytes=max_bytes, backupCount=backup_count)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
-        self.logger.setLevel(logging.DEBUG)
 
-    def log_performance(self, func):
-        def wrapper(*args, **kwargs):
-            start_time = time.perf_counter()
-            result = func(*args, **kwargs)
-            end_time = time.perf_counter()
-            elapsed_time = end_time - start_time
-            self.logger.info(f'Executed {func.__name__} in {elapsed_time:.4f} seconds')
-            return result
-        return wrapper
+    def debug(self, message):
+        self.logger.debug(message)
+    
+    def info(self, message):
+        self.logger.info(message)
+    
+    def warning(self, message):
+        self.logger.warning(message)
+    
+    def error(self, message):
+        self.logger.error(message)
+    
+    def critical(self, message):
+        self.logger.critical(message)
 
-performance_logger = PerformanceLogger(__name__)
+logger = Logger('GameLogger')
