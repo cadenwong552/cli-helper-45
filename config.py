@@ -1,33 +1,27 @@
-import os
 import json
+import os
 
-class Config:
-    def __init__(self, filename='config.json'):
-        self.filename = filename
-        self.config_data = self.load_config()
+def load_configuration(config_file='config.json', default_config=None):
+    if default_config is None:
+        default_config = {  
+            'resolution': '1920x1080',  
+            'volume': 70,  
+            'controls': {'up': 'W', 'down': 'S', 'left': 'A', 'right': 'D'}  
+        }
+    
+    if not os.path.isfile(config_file):
+        return default_config
+    
+    with open(config_file, 'r') as file:
+        try:
+            user_config = json.load(file)
+        except json.JSONDecodeError:
+            print('Error decoding JSON, using defaults')
+            return default_config
+    
+    return {**default_config, **user_config}
 
-    def load_config(self):
-        if not os.path.exists(self.filename):
-            return {}
-        with open(self.filename, 'r') as file:
-            return json.load(file)
-
-    def save_config(self):
-        with open(self.filename, 'w') as file:
-            json.dump(self.config_data, file, indent=4)
-
-    def get(self, key, default=None):
-        return self.config_data.get(key, default)
-
-    def set(self, key, value):
-        self.config_data[key] = value
-        self.save_config()  
-
-    def all(self):
-        return self.config_data
-
+# Example use case
 if __name__ == '__main__':
-    config = Config()
-    config.set('resolution', '1920x1080')
-    print(config.get('resolution'))
-    print(config.all())
+    config = load_configuration()
+    print(config)
