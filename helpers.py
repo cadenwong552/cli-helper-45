@@ -1,43 +1,24 @@
-from typing import List, Dict
+import logging
+import os
+from logging.handlers import RotatingFileHandler
 
+def setup_logger(log_file, max_bytes=5*1024*1024, backup_count=3):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
 
-def calculate_score(player_actions: List[str]) -> Dict[str, int]:
-    """
-    Calculate the total score based on player actions.
+    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
 
-    Args:
-        player_actions (List[str]): A list of actions performed by the player.
+    logger.addHandler(handler)
 
-    Returns:
-        Dict[str, int]: A dictionary with action names as keys and their respective scores as values.
-    """
-    score: Dict[str, int] = {}
-    score['attack'] = sum(1 for action in player_actions if action == 'attack') * 10
-    score['defend'] = sum(1 for action in player_actions if action == 'defend') * 5
-    score['heal'] = sum(1 for action in player_actions if action == 'heal') * 8
-    return score
+    if not logger.hasHandlers():
+        logger.addHandler(handler)
+    return logger
 
-
-def apply_bonus(score: Dict[str, int], bonus_multiplier: float) -> Dict[str, int]:
-    """
-    Apply a bonus multiplier to the scores.
-
-    Args:
-        score (Dict[str, int]): The current score of the player.
-        bonus_multiplier (float): The multiplier to apply to the score.
-
-    Returns:
-        Dict[str, int]: The updated score after applying the bonus.
-    """
-    return {action: int(value * bonus_multiplier) for action, value in score.items()}
-
-
-def display_scores(score: Dict[str, int]) -> None:
-    """
-    Print the scores in a formatted way.
-    
-    Args:
-        score (Dict[str, int]): The scores to display.
-    """
-    for action, value in score.items():
-        print(f"{action.capitalize()}: {value}")
+# Example of how to use this logger
+if __name__ == '__main__':
+    logger = setup_logger('game_log.log')
+    logger.info('Logger setup complete.')
+    logger.error('This is an error message.')
+    logger.debug('Debugging information goes here.')
