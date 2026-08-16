@@ -1,32 +1,35 @@
 import logging
+import time
 
-# Set up logging configurations
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+class CustomLogger:
+    def __init__(self, name):
+        self.logger = logging.getLogger(name)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        self.logger.setLevel(logging.INFO)
 
-class GameLogger:
-    def __init__(self, game_name):
-        self.logger = logging.getLogger(game_name)
-
-    def debug(self, message):
-        self.logger.debug(message)
-
-    def info(self, message):
+    def log_info(self, message):
         self.logger.info(message)
 
-    def warning(self, message):
-        self.logger.warning(message)
-
-    def error(self, message):
+    def log_error(self, message):
         self.logger.error(message)
 
-    def critical(self, message):
-        self.logger.critical(message)
+    def log_warning(self, message):
+        self.logger.warning(message)
 
-logger = GameLogger('GameSession')
 
-if __name__ == '__main__':
-    logger.info('Game Logger initialized!')
-    logger.debug('This is a debug message.')
-    logger.warning('This is a warning message.')
-    logger.error('This is an error message.')
-    logger.critical('This is a critical message.')
+def retry_with_logging(func, retries=3, delay=2):
+    logger = CustomLogger('NetworkOperation')
+    for attempt in range(retries):
+        try:
+            result = func()
+            return result
+        except Exception as e:
+            logger.log_error(f'Attempt {attempt + 1} failed: {e}')
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                logger.log_error('All attempts failed')
+                raise
