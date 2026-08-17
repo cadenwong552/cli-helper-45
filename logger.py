@@ -1,35 +1,26 @@
 import logging
-import time
 
-class CustomLogger:
-    def __init__(self, name):
-        self.logger = logging.getLogger(name)
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        self.logger.setLevel(logging.INFO)
+class CustomFormatter(logging.Formatter):
+    # Custom log formatting
+    def format(self, record):
+        log_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
 
-    def log_info(self, message):
-        self.logger.info(message)
+def setup_logger(name):
+    # Setting up the logger
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(CustomFormatter())
+    logger.addHandler(ch)
+    return logger
 
-    def log_error(self, message):
-        self.logger.error(message)
-
-    def log_warning(self, message):
-        self.logger.warning(message)
-
-
-def retry_with_logging(func, retries=3, delay=2):
-    logger = CustomLogger('NetworkOperation')
-    for attempt in range(retries):
-        try:
-            result = func()
-            return result
-        except Exception as e:
-            logger.log_error(f'Attempt {attempt + 1} failed: {e}')
-            if attempt < retries - 1:
-                time.sleep(delay)
-            else:
-                logger.log_error('All attempts failed')
-                raise
+if __name__ == '__main__':
+    log = setup_logger('game_logger')
+    log.debug('This is a debug message')
+    log.info('This is an info message')
+    log.warning('This is a warning message')
+    log.error('This is an error message')
+    log.critical('This is a critical message')
