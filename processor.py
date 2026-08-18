@@ -1,24 +1,33 @@
-import time
+import json
+import random
 
-class GameProcessor:
-    def __init__(self, initial_data):
-        self.data = initial_data
-        self.results = []
+class GameDataProcessor:
+    def __init__(self, data):
+        self.data = data
 
-    def process_data(self):
-        start = time.perf_counter()
-        self.results = [self.expensive_operation(d) for d in self.data]
-        end = time.perf_counter()
-        print(f'Processing time: {end - start:.4f} seconds')
+    def filter_games(self, genre=None, min_rating=0):
+        filtered = [game for game in self.data if (genre is None or game['genre'] == genre) and game['rating'] >= min_rating]
+        return filtered
 
-    def expensive_operation(self, d):
-        return d ** 2  # Simulating heavy computation
+    def generate_random_game(self):
+        return random.choice(self.data)
 
-    def get_results(self):
-        return self.results
+    def get_average_rating(self):
+        total_rating = sum(game['rating'] for game in self.data)
+        return total_rating / len(self.data) if self.data else 0
 
-# Sample usage
-if __name__ == '__main__':
-    processor = GameProcessor(range(10000))
-    processor.process_data()
-    print(processor.get_results()[:10])  # Print first 10 results
+    def serialize_data(self):
+        return json.dumps(self.data, indent=4)
+
+if __name__ == "__main__":
+    sample_data = [
+        {'title': 'Game A', 'genre': 'RPG', 'rating': 4.5},
+        {'title': 'Game B', 'genre': 'Action', 'rating': 3.8},
+        {'title': 'Game C', 'genre': 'RPG', 'rating': 4.9},
+        {'title': 'Game D', 'genre': 'Puzzle', 'rating': 4.0},
+    ]
+    processor = GameDataProcessor(sample_data)
+    print(processor.filter_games(genre='RPG', min_rating=4.0))
+    print(processor.generate_random_game())
+    print(processor.get_average_rating())
+    print(processor.serialize_data())
