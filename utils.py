@@ -1,51 +1,30 @@
-import json
-import os
+import time
 import random
+import requests
 
-class GameError(Exception):
-    pass
+def retry_on_failure(max_retries=3, wait_time=2, backoff=2):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except (requests.ConnectionError, requests.Timeout) as e:
+                    print(f"Attempt {retries + 1} failed: {e}")
+                    time.sleep(wait_time)
+                    wait_time *= backoff
+                    retries += 1
+            print("All attempts failed.")
+            return None
+        return wrapper
+    return decorator
 
-class FileNotFoundError(GameError):
-    pass
-
-class InvalidDataError(GameError):
-    pass
-
-
-def load_game_data(filepath):
-    if not os.path.isfile(filepath):
-        raise FileNotFoundError(f"File not found: {filepath}")
-    try:
-        with open(filepath, 'r') as file:
-            data = json.load(file)
-            validate_game_data(data)
-            return data
-    except json.JSONDecodeError:
-        raise InvalidDataError(f"Invalid JSON data in file: {filepath}")
-
-
-def validate_game_data(data):
-    required_keys = ['level', 'player', 'score']
-    for key in required_keys:
-        if key not in data:
-            raise InvalidDataError(f"Missing key: {key} in game data")
-
-
-def get_random_item(items):
-    if not items:
-        raise ValueError("Item list cannot be empty")
-    return random.choice(items)
-
-
-def main():
-    try:
-        game_data = load_game_data('game.json')
-        item = get_random_item(game_data['items'])
-        print(f"Random item: {item}")
-    except GameError as e:
-        print(f"Game Error: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
+@retry_on_failure(max_retries=5, wait_time=1)
+def fetch_data(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
 
 if __name__ == '__main__':
-    main()
+    data = fetch_data('https://api.example.com/data')
+    print(data)
