@@ -1,81 +1,65 @@
-from typing import Dict, List, Optional, Tuple
+import math
 import random
+from typing import Any, Dict, List, Tuple
 
 
-def parse_game_command(command: str) -> Dict[str, Optional[str]]:
-    """Parse user command for the gaming CLI.
-
-    Splits the command and extracts action and optional target.
-    """
-    parts: List[str] = command.strip().lower().split(maxsplit=1)
-    if not parts:
-        return {"action": None, "target": None}
-    action: str = parts[0]
-    target: Optional[str] = parts[1] if len(parts) > 1 else None
-    return {"action": action, "target": target}
-
-
-def calculate_score(stats: Dict[str, int]) -> int:
-    """Calculate player score using weighted sum.
-
-    Creative approach: uses generator expression with default weights.
-    """
-    weights: Dict[str, float] = {"strength": 2.0, "agility": 1.5, "intelligence": 3.0}
-    return sum(
-        stat_value * weights.get(stat_name, 1.0)
-        for stat_name, stat_value in stats.items()
-    )
+def render_hud_bar(current: int, maximum: int, width: int = 20, fill_char: str = "█", empty_char: str = "░") -> str:
+    """Renders a dynamic terminal health/mana bar with percentage threshold coloring."""
+    ratio = max(0.0, min(1.0, current / maximum if maximum > 0 else 0.0))
+    filled_len = int(round(width * ratio))
+    
+    if ratio > 0.5:
+        color = "\033[92m"
+    elif ratio > 0.2:
+        color = "\033[93m"
+    else:
+        color = "\033[91m"
+        
+    reset = "\033[0m"
+    bar = fill_char * filled_len + empty_char * (width - filled_len)
+    return f"[{color}{bar}{reset}] {current}/{maximum} ({int(ratio * 100)}%)"
 
 
-def simulate_battle(player_hp: int, enemy_hp: int, max_turns: int = 5) -> Tuple[int, int]:
-    """Simulate battle rounds until max turns or defeat.
-
-    Returns remaining HP for player and enemy.
-    """
-    current_player_hp: int = player_hp
-    current_enemy_hp: int = enemy_hp
-    for turn in range(max_turns):
-        if current_enemy_hp <= 0 or current_player_hp <= 0:
-            break
-        enemy_damage: int = random.randint(5, 15)
-        current_player_hp -= enemy_damage
-        player_damage: int = random.randint(3, 12)
-        current_enemy_hp -= player_damage
-    return max(current_player_hp, 0), max(current_enemy_hp, 0)
+def calculate_xp_thresholds(max_level: int = 50, base_xp: int = 100, exponent: float = 1.5) -> Dict[int, int]:
+    """Generates experience curve mapping levels to total required XP using power scaling."""
+    return {
+        level: int(base_xp * math.pow(level - 1, exponent))
+        for level in range(1, max_level + 1)
+    }
 
 
-def generate_quest_hint(level: int, available_quests: List[str]) -> Optional[str]:
-    """Select a quest hint based on player level.
-
-    Unusual filter: quests longer than level number.
-    """
-    filtered_quests: List[str] = [
-        quest for quest in available_quests if len(quest) > level
-    ]
-    if not filtered_quests:
+def roll_loot_table(loot_table: List[Tuple[Any, float]], luck_modifier: float = 1.0) -> Any:
+    """Selects an item from a weighted loot table modified by player luck stat."""
+    if not loot_table:
         return None
-    return random.choice(filtered_quests)
+    
+    adjusted = [(item, max(0.001, weight ** (1.0 / luck_modifier))) for item, weight in loot_table]
+    total_weight = sum(w for _, w in adjusted)
+    pick = random.uniform(0, total_weight)
+    
+    current = 0.0
+    for item, weight in adjusted:
+        current += weight
+        if current >= pick:
+            return item
+    return loot_table[-1][0]
 
 
-def format_inventory(items: List[Tuple[str, int]]) -> str:
-    """Format the inventory into a display string.
-
-    Uses list comprehension for creative formatting.
-    """
+def format_inventory_grid(items: List[str], cols: int = 4) -> str:
+    """Formats a list of inventory item names into a boxed CLI ASCII grid."""
     if not items:
-        return "Your inventory is empty."
-    formatted_items: List[str] = [f"{name} ({count})" for name, count in items]
-    return "Inventory: " + " | ".join(formatted_items)
-
-
-def recursive_level_up(current_level: int, experience: int, max_level: int = 20) -> int:
-    """Recursively compute new level based on experience.
-
-    Unusual recursive approach for level calculation.
-    """
-    if current_level >= max_level:
-        return max_level
-    required_exp: int = current_level * 50
-    if experience < required_exp:
-        return current_level
-    return recursive_level_up(current_level + 1, experience - required_exp, max_level)
+        return "[ Empty Inventory ]"
+    
+    cell_width = max(len(item) for item in items) + 2
+    rows = [items[i:i + cols] for i in range(0, len(items), cols)]
+    border = "+" + ("-" * cell_width + "+") * cols
+    
+    lines = [border]
+    for row in rows:
+        padded_row = [item.center(cell_width) for item in row]
+        while len(padded_row) < cols:
+            padded_row.append(" ".center(cell_width))
+        lines.append("|" + "|".join(padded_row) + "|")
+        lines.append(border)
+        
+    return "\n".join(lines)
