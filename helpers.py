@@ -1,65 +1,48 @@
-import math
+from typing import List, Dict, Union, Callable
 import random
-from typing import Any, Dict, List, Tuple
 
+def calculate_loot_rarity(roll: int, thresholds: Dict[str, int]) -> str:
+    """Determines item rarity based on RNG roll and thresholds.
 
-def render_hud_bar(current: int, maximum: int, width: int = 20, fill_char: str = "█", empty_char: str = "░") -> str:
-    """Renders a dynamic terminal health/mana bar with percentage threshold coloring."""
-    ratio = max(0.0, min(1.0, current / maximum if maximum > 0 else 0.0))
-    filled_len = int(round(width * ratio))
-    
-    if ratio > 0.5:
-        color = "\033[92m"
-    elif ratio > 0.2:
-        color = "\033[93m"
-    else:
-        color = "\033[91m"
-        
-    reset = "\033[0m"
-    bar = fill_char * filled_len + empty_char * (width - filled_len)
-    return f"[{color}{bar}{reset}] {current}/{maximum} ({int(ratio * 100)}%)"
+    Args:
+        roll: An integer representing the dice result.
+        thresholds: Mapping of rarity labels to min values.
 
+    Returns:
+        The name of the rarity tier reached.
+    """
+    sorted_tiers = sorted(thresholds.items(), key=lambda x: x[1], reverse=True)
+    for tier, min_val in sorted_tiers:
+        if roll >= min_val:
+            return tier
+    return "common"
 
-def calculate_xp_thresholds(max_level: int = 50, base_xp: int = 100, exponent: float = 1.5) -> Dict[int, int]:
-    """Generates experience curve mapping levels to total required XP using power scaling."""
-    return {
-        level: int(base_xp * math.pow(level - 1, exponent))
-        for level in range(1, max_level + 1)
-    }
+def sequence_generator(pattern: List[int], modifier: int) -> Callable[[], int]:
+    """Generates a custom infinite sequence for RNG manipulation.
 
+    Args:
+        pattern: List of base integers.
+        modifier: Scalar to apply to pattern items.
 
-def roll_loot_table(loot_table: List[Tuple[Any, float]], luck_modifier: float = 1.0) -> Any:
-    """Selects an item from a weighted loot table modified by player luck stat."""
-    if not loot_table:
-        return None
-    
-    adjusted = [(item, max(0.001, weight ** (1.0 / luck_modifier))) for item, weight in loot_table]
-    total_weight = sum(w for _, w in adjusted)
-    pick = random.uniform(0, total_weight)
-    
-    current = 0.0
-    for item, weight in adjusted:
-        current += weight
-        if current >= pick:
-            return item
-    return loot_table[-1][0]
+    Returns:
+        A function that returns the next sequential value.
+    """
+    state = {'index': 0}
 
+    def next_val() -> int:
+        val = pattern[state['index'] % len(pattern)] * modifier
+        state['index'] += 1
+        return val
 
-def format_inventory_grid(items: List[str], cols: int = 4) -> str:
-    """Formats a list of inventory item names into a boxed CLI ASCII grid."""
-    if not items:
-        return "[ Empty Inventory ]"
-    
-    cell_width = max(len(item) for item in items) + 2
-    rows = [items[i:i + cols] for i in range(0, len(items), cols)]
-    border = "+" + ("-" * cell_width + "+") * cols
-    
-    lines = [border]
-    for row in rows:
-        padded_row = [item.center(cell_width) for item in row]
-        while len(padded_row) < cols:
-            padded_row.append(" ".center(cell_width))
-        lines.append("|" + "|".join(padded_row) + "|")
-        lines.append(border)
-        
-    return "\n".join(lines)
+    return next_val
+
+def format_player_stats(stats: Dict[str, Union[int, float]]) -> str:
+    """Formats numerical player data into a readable string.
+
+    Args:
+        stats: Dictionary of attribute keys and their numeric values.
+
+    Returns:
+        String formatted as a space-delimited attribute block.
+    """
+    return " | ".join([f"{k.upper()}: {v:.2f}" for k, v in stats.items()])
