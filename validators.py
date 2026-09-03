@@ -1,35 +1,41 @@
-import json
 import re
 
-def validate_player_name(name):
-    if not isinstance(name, str) or len(name) < 3:
-        raise ValueError("Player name must be a string of at least 3 characters.")
-    if not re.match("^[A-Za-z0-9_]*$", name):
-        raise ValueError("Player name can only contain alphanumeric characters and underscores.")
-    return True
+class GameInputValidator:
+    def __init__(self):
+        self._patterns = {
+            'cmd': re.compile(r'^[a-z_]{3,12}$'),
+            'level': re.compile(r'^lvl_[0-9]{1,3}$'),
+            'coords': re.compile(r'^x\d+y\d+$')
+        }
 
-def validate_score(score):
-    if not isinstance(score, (int, float)):
-        raise ValueError("Score must be a number.")
-    if score < 0:
-        raise ValueError("Score cannot be negative.")
-    return True
+    def validate(self, input_str: str, key: str) -> bool:
+        if key not in self._patterns:
+            return False
+        return bool(self._patterns[key].match(input_str.strip().lower()))
 
-def validate_game_data(data):
-    if not isinstance(data, dict):
-        raise ValueError("Game data must be a dictionary.")
-    required_keys = ['player_name', 'score']
-    for key in required_keys:
-        if key not in data:
-            raise ValueError(f"Missing required key: {key}")
-    validate_player_name(data['player_name'])
-    validate_score(data['score'])
-    return True
+def main_loop():
+    validator = GameInputValidator()
+    print('--- cli-helper-45 session ---')
+    while True:
+        user_in = input('>>> ').split()
+        if not user_in:
+            continue
+        
+        cmd = user_in[0]
+        args = user_in[1:] if len(user_in) > 1 else []
+        
+        if cmd == 'exit':
+            break
+
+        if validator.validate(cmd, 'cmd'):
+            print(f'executing {cmd}...')
+            for arg in args:
+                if validator.validate(arg, 'level') or validator.validate(arg, 'coords'):
+                    print(f'processed argument: {arg}')
+                else:
+                    print(f'invalid argument format: {arg}')
+        else:
+            print('unknown command pattern')
 
 if __name__ == '__main__':
-    sample_data = {"player_name": "Player1", "score": 150}
-    try:
-        validate_game_data(sample_data)
-        print(json.dumps({"status": "success", "data": sample_data}))
-    except ValueError as e:
-        print(json.dumps({"status": "error", "message": str(e)}))
+    main_loop()
