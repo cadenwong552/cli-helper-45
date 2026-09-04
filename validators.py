@@ -1,41 +1,45 @@
 import re
+from typing import Any, Optional
 
-class GameInputValidator:
-    def __init__(self):
-        self._patterns = {
-            'cmd': re.compile(r'^[a-z_]{3,12}$'),
-            'level': re.compile(r'^lvl_[0-9]{1,3}$'),
-            'coords': re.compile(r'^x\d+y\d+$')
-        }
+class InputValidator:
+    """Gaming CLI input validation logic using patterns."""
+    
+    COMMAND_MAP = {
+        'move': r'^(up|down|left|right)$',
+        'attack': r'^(slash|stab|magic|spell_\d+)$',
+        'inventory': r'^(show|drop|use|equip)\s[a-z0-9_]+$'
+    }
 
-    def validate(self, input_str: str, key: str) -> bool:
-        if key not in self._patterns:
+    def __init__(self, debug_mode: bool = False):
+        self.debug = debug_mode
+
+    def validate(self, cmd: str, args: str) -> bool:
+        if cmd not in self.COMMAND_MAP:
             return False
-        return bool(self._patterns[key].match(input_str.strip().lower()))
+        
+        pattern = self.COMMAND_MAP[cmd]
+        input_str = f"{cmd} {args}".strip() if args else cmd
+        
+        match = re.match(pattern, input_str)
+        if self.debug and not match:
+            print(f"[Validator] Rejected: {input_str}")
+        
+        return bool(match)
 
-def main_loop():
-    validator = GameInputValidator()
-    print('--- cli-helper-45 session ---')
+    def sanitize_input(self, raw_input: str) -> tuple[str, str]:
+        parts = raw_input.lower().strip().split(' ', 1)
+        command = parts[0]
+        arguments = parts[1] if len(parts) > 1 else ""
+        return command, arguments
+
+def run_loop(validator: InputValidator):
     while True:
-        user_in = input('>>> ').split()
-        if not user_in:
-            continue
-        
-        cmd = user_in[0]
-        args = user_in[1:] if len(user_in) > 1 else []
-        
-        if cmd == 'exit':
+        user_input = input("cli-helper-45 > ")
+        if user_input.lower() == 'exit':
             break
-
-        if validator.validate(cmd, 'cmd'):
-            print(f'executing {cmd}...')
-            for arg in args:
-                if validator.validate(arg, 'level') or validator.validate(arg, 'coords'):
-                    print(f'processed argument: {arg}')
-                else:
-                    print(f'invalid argument format: {arg}')
+            
+        cmd, args = validator.sanitize_input(user_input)
+        if validator.validate(cmd, args):
+            print(f"Executing {cmd} with {args or 'default'}")
         else:
-            print('unknown command pattern')
-
-if __name__ == '__main__':
-    main_loop()
+            print("Invalid command syntax for current game state")
