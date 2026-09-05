@@ -1,43 +1,36 @@
-import logging
-from logging.handlers import RotatingFileHandler
-import random
+import functools
+import sys
 
-class GamingFormatter(logging.Formatter):
-    LEVEL_EMOJIS = {
-        logging.DEBUG: "👾 [SPAWN]",
-        logging.INFO: "⚔️ [QUEST]",
-        logging.WARNING: "⚠️ [HAZARD]",
-        logging.ERROR: "💥 [DEATH]",
-        logging.CRITICAL: "👑 [BOSS]"
-    }
+class GamingEngineError(Exception):
+    """Base exception for cli-helper-45 failures."""
 
-    def format(self, record):
-        emoji = self.LEVEL_EMOJIS.get(record.levelno, "🎮")
-        hp = random.randint(1, 100)
-        xp = record.relativeCreated / 1000.0
-        record.msg = f"{emoji} [HP: {hp}%] [XP: {xp:.2f}s] - {record.msg}"
-        return super().format(record)
+def graceful_recovery(fallback_value):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except (ValueError, TypeError, ZeroDivisionError) as e:
+                print(f"[!] {func.__name__} glitched: {e}. Switching to {fallback_value}", file=sys.stderr)
+                return fallback_value
+        return wrapper
+    return decorator
 
-def setup_gamer_logger(log_file="quest.log"):
-    logger = logging.getLogger("cli_helper_45")
-    logger.setLevel(logging.DEBUG)
-    
-    if not logger.handlers:
-        file_handler = RotatingFileHandler(
-            log_file, maxBytes=10240, backupCount=3, encoding="utf-8"
-        )
-        file_handler.setLevel(logging.DEBUG)
-        
-        formatter = GamingFormatter(
-            fmt="%(asctime)s | %(message)s",
-            datefmt="%H:%M:%S"
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-        
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
-        
-    return logger
+@graceful_recovery(0)
+def calculate_xp_modifier(base_val, divisor):
+    if divisor == 0:
+        raise ZeroDivisionError("Cannot divide XP by zero player count")
+    return int(base_val / divisor)
+
+def sanitize_input(user_input):
+    try:
+        return str(user_input).strip()[:16]
+    except Exception:
+        return "default_npc_name"
+
+def load_game_state(file_path):
+    try:
+        with open(file_path, 'r') as f:
+            return f.read()
+    except (FileNotFoundError, PermissionError):
+        return "{ 'status': 'fresh_save' }"
