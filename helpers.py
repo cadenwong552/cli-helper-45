@@ -1,48 +1,43 @@
-from typing import List, Dict, Union, Callable
+import logging
+from logging.handlers import RotatingFileHandler
 import random
 
-def calculate_loot_rarity(roll: int, thresholds: Dict[str, int]) -> str:
-    """Determines item rarity based on RNG roll and thresholds.
+class GamingFormatter(logging.Formatter):
+    LEVEL_EMOJIS = {
+        logging.DEBUG: "👾 [SPAWN]",
+        logging.INFO: "⚔️ [QUEST]",
+        logging.WARNING: "⚠️ [HAZARD]",
+        logging.ERROR: "💥 [DEATH]",
+        logging.CRITICAL: "👑 [BOSS]"
+    }
 
-    Args:
-        roll: An integer representing the dice result.
-        thresholds: Mapping of rarity labels to min values.
+    def format(self, record):
+        emoji = self.LEVEL_EMOJIS.get(record.levelno, "🎮")
+        hp = random.randint(1, 100)
+        xp = record.relativeCreated / 1000.0
+        record.msg = f"{emoji} [HP: {hp}%] [XP: {xp:.2f}s] - {record.msg}"
+        return super().format(record)
 
-    Returns:
-        The name of the rarity tier reached.
-    """
-    sorted_tiers = sorted(thresholds.items(), key=lambda x: x[1], reverse=True)
-    for tier, min_val in sorted_tiers:
-        if roll >= min_val:
-            return tier
-    return "common"
-
-def sequence_generator(pattern: List[int], modifier: int) -> Callable[[], int]:
-    """Generates a custom infinite sequence for RNG manipulation.
-
-    Args:
-        pattern: List of base integers.
-        modifier: Scalar to apply to pattern items.
-
-    Returns:
-        A function that returns the next sequential value.
-    """
-    state = {'index': 0}
-
-    def next_val() -> int:
-        val = pattern[state['index'] % len(pattern)] * modifier
-        state['index'] += 1
-        return val
-
-    return next_val
-
-def format_player_stats(stats: Dict[str, Union[int, float]]) -> str:
-    """Formats numerical player data into a readable string.
-
-    Args:
-        stats: Dictionary of attribute keys and their numeric values.
-
-    Returns:
-        String formatted as a space-delimited attribute block.
-    """
-    return " | ".join([f"{k.upper()}: {v:.2f}" for k, v in stats.items()])
+def setup_gamer_logger(log_file="quest.log"):
+    logger = logging.getLogger("cli_helper_45")
+    logger.setLevel(logging.DEBUG)
+    
+    if not logger.handlers:
+        file_handler = RotatingFileHandler(
+            log_file, maxBytes=10240, backupCount=3, encoding="utf-8"
+        )
+        file_handler.setLevel(logging.DEBUG)
+        
+        formatter = GamingFormatter(
+            fmt="%(asctime)s | %(message)s",
+            datefmt="%H:%M:%S"
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+        
+    return logger
