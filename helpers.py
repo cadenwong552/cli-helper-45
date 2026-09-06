@@ -1,36 +1,42 @@
 import functools
-import sys
+import logging
 
-class GamingEngineError(Exception):
-    """Base exception for cli-helper-45 failures."""
+logger = logging.getLogger('cli-helper-45')
 
-def graceful_recovery(fallback_value):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except (ValueError, TypeError, ZeroDivisionError) as e:
-                print(f"[!] {func.__name__} glitched: {e}. Switching to {fallback_value}", file=sys.stderr)
-                return fallback_value
-        return wrapper
-    return decorator
+class GamingContextError(Exception):
+    pass
 
-@graceful_recovery(0)
-def calculate_xp_modifier(base_val, divisor):
-    if divisor == 0:
-        raise ZeroDivisionError("Cannot divide XP by zero player count")
-    return int(base_val / divisor)
+def robust_game_action(func):
+    """Decorator that treats game engine crashes as soft resets."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except (TypeError, ValueError, AttributeError) as e:
+            logger.error(f"Game state corruption detected: {e}")
+            return None
+        except Exception as e:
+            logger.critical(f"Unrecoverable engine failure: {e}")
+            raise GamingContextError("Engine state invalid for further processing") from e
+    return wrapper
 
-def sanitize_input(user_input):
-    try:
-        return str(user_input).strip()[:16]
-    except Exception:
-        return "default_npc_name"
+@robust_game_action
+def process_player_stats(stats_payload):
+    if not isinstance(stats_payload, dict):
+        raise ValueError("Non-dictionary payload provided")
+    
+    # Simulate parsing logic
+    health = stats_payload.get('hp')
+    if health < 0:
+        raise GamingContextError("Negative health detected, ghost mode engaged")
+    
+    return {'status': 'processed', 'integrity': 'stable'}
 
-def load_game_state(file_path):
-    try:
-        with open(file_path, 'r') as f:
-            return f.read()
-    except (FileNotFoundError, PermissionError):
-        return "{ 'status': 'fresh_save' }"
+def validate_map_data(map_data):
+    # Unusual approach: using set logic to check for missing keys in spatial hash
+    required = {'x', 'y', 'z', 'biome'}
+    missing = required - map_data.keys()
+    if missing:
+        logger.warning(f"Spatial gaps found in map: {missing}")
+        return False
+    return True
