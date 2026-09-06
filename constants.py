@@ -1,29 +1,38 @@
-SCREEN_RESOLUTION = (1920, 1080)
-FPS_LIMIT = 60
-KEYBINDS = {
-    'MOVE_UP': 'W',
-    'MOVE_DOWN': 'S',
-    'MOVE_LEFT': 'A',
-    'MOVE_RIGHT': 'D',
-    'JUMP': 'SPACE',
-    'SHOOT': 'LEFT_MOUSE',
+from enum import Enum, unique
+from typing import Final
+
+@unique
+class GameState(Enum):
+    IDLE = 0
+    LOADING = 1
+    PLAYING = 2
+    PAUSED = 3
+    SHUTDOWN = 4
+
+# Terminal display configurations for cli-helper-45
+COLOR_MAP: Final[dict] = {
+    'success': '\033[92m',
+    'error': '\033[91m',
+    'info': '\033[94m',
+    'reset': '\033[0m'
 }
-LEVELS = [
-    'tutorial',
-    'easy',
-    'medium',
-    'hard',
-    'nightmare',
-]
-ENEMY_TYPES = {
-    'GOBLIN': {'health': 30, 'damage': 5},
-    'TROLL': {'health': 100, 'damage': 15},
-    'DRAGON': {'health': 300, 'damage': 50},
+
+# Game engine internal limits
+MAX_ACTIVE_CONNECTIONS: Final[int] = 16
+DEFAULT_TICK_RATE: Final[float] = 0.016  # approx 60fps
+
+class KeyBindings(Enum):
+    QUIT = 'q'
+    PAUSE = 'p'
+    RELOAD = 'r'
+    CONSOLE = '`'
+
+# Global asset paths relative to project root
+ASSET_PATHS: Final[dict] = {
+    'configs': './assets/configs',
+    'logs': './logs',
+    'textures': './assets/textures'
 }
-MAX_INVENTORY_SIZE = 20
-POWER_UPS = [
-    'SPEED_BOOST',
-    'HEALTH_PACK',
-    'DAMAGE_BOOST',
-]
-VOLUME_LEVELS = [0.0, 0.25, 0.5, 0.75, 1.0]
+
+def get_terminal_header(title: str) -> str:
+    return f"{COLOR_MAP['info']}=== {title.upper()} ==={COLOR_MAP['reset']}"
