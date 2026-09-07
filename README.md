@@ -1,59 +1,53 @@
 # cli-helper-45
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 
-`cli-helper-45` is a lightweight command-line utility designed to streamline game modding, server management, and asset compilation workflows. It bridges the gap between raw Python automation and high-performance gaming environments without adding overhead.
+`cli-helper-45` is a high-performance Python CLI utility designed to streamline game server administration and asset management. It minimizes latency in configuration deployment, allowing developers to manage multi-environment gaming backend states with single-command efficiency.
 
-## Features
+### Features
 
-- **Automated Mod Sorting:** Scans your local game directory and resolves load order conflicts for complex mod lists using custom dependency graphs.
-- **Dedicated Server Watchdog:** Monitors headless server processes, auto-restarts on unexpected crashes, and pushes real-time status alerts to Discord webhooks.
-- **Asset Bulk Compressor:** Converts high-resolution texture packs and audio files into game-optimized formats (DDS/XWMA) utilizing multi-core CPU parallelization.
-- **Config Profile Switcher:** Instantly swaps between competitive, casual, and cinematic configuration presets with a single terminal command.
+*   **Server State Snapshotting:** Quickly capture and export local dev-server configurations into JSON blueprints for rapid deployment.
+*   **Asset Compression Pipeline:** Automated batch processing to minify textures and compress audio files without losing metadata.
+*   **Integrated RCON Controller:** Built-in shell interface for executing remote console commands across distributed game server clusters.
+*   **Schema Validation:** Real-time checking of YAML game-logic files to prevent syntax-related runtime crashes before you deploy.
 
-## Installation
+### Installation
 
-Ensure you have Python 3.8 or higher installed on your system. Install the tool globally via pip:
+Ensure you have Python 3.9+ installed. You can install the tool directly from PyPI:
 
 ```bash
 pip install cli-helper-45
 ```
 
-Alternatively, install from source for local development:
+Alternatively, for local development:
 
 ```bash
 git clone https://github.com/Developer/cli-helper-45.git
 cd cli-helper-45
-pip install -e .
+pip install -r requirements.txt
+python setup.py install
 ```
 
-## Basic Usage
+### Basic Usage
 
-Initialize the helper inside your target game directory:
+Manage your server configurations directly from the terminal. To validate your current configuration file, use:
 
 ```bash
-cli-helper-45 init --game "SkyrimSE"
+cli-helper-45 validate --config ./game_server.yaml
 ```
 
-To automatically sort your active mods and output a diagnostic report:
+To sync your current local assets to a remote staging server:
 
 ```bash
-cli-helper-45 mods sort --verify --output report.txt
+cli-helper-45 sync --target staging --path ./assets/textures/
 ```
 
-Launch the server watchdog with a custom configuration file and webhook integration:
+To send a global message to your players via the integrated RCON console:
 
 ```bash
-cli-helper-45 server start --config prod_server.json --webhook "https://discord.com/api/webhooks/your-webhook-url"
+cli-helper-45 rcon --host 127.0.0.1 --cmd "say 'Server maintenance in 5 minutes!'"
 ```
 
-For a complete list of available commands and flags, run:
+### License
 
-```bash
-cli-helper-45 --help
-```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
