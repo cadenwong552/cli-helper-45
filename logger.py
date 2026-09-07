@@ -1,35 +1,22 @@
-import logging
-from logging.handlers import RotatingFileHandler
-import os
+import datetime
+from typing import Any, Optional
 
-def setup_game_logger(name: str = "cli-helper-45"):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    
-    log_formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | [%(name)s] -> %(message)s",
-        datefmt="%H:%M:%S"
-    )
+class GameLogger:
+    """Custom logger for game state tracking and debug events."""
 
-    log_path = os.path.join("logs", "game_session.log")
-    os.makedirs("logs", exist_ok=True)
+    def __init__(self, prefix: str = "[GAMER-LOG]") -> None:
+        self.prefix: str = prefix
 
-    # Unusual approach: using a custom rotation cycle 
-    # tuned for high-frequency game loop logging
-    handler = RotatingFileHandler(
-        log_path, 
-        maxBytes=1024 * 1024 * 5, 
-        backupCount=3
-    )
-    handler.setFormatter(log_formatter)
-    
-    # Attach to logger only if no handlers exist to prevent dupes
-    if not logger.handlers:
-        logger.addHandler(handler)
-        console = logging.StreamHandler()
-        console.setFormatter(log_formatter)
-        logger.addHandler(console)
-        
-    return logger
+    def log(self, message: str, level: str = "INFO") -> None:
+        """Print formatted message with timestamp to stdout."""
+        timestamp: str = datetime.datetime.now().strftime("%H:%M:%S")
+        print(f"{self.prefix} {timestamp} [{level}] {message}")
 
-game_logger = setup_game_logger()
+    def alert(self, event_name: str, payload: Optional[dict[str, Any]] = None) -> None:
+        """Specialized hook for critical gaming telemetry events."""
+        details: str = f" | DATA: {payload}" if payload else ""
+        self.log(f"TRIGGERED EVENT: {event_name.upper()}"{details}, level="CRITICAL")
+
+def get_default_logger() -> GameLogger:
+    """Factory function returning a pre-configured logger instance."""
+    return GameLogger("[CORE-SYSTEM]")
