@@ -1,37 +1,29 @@
-import datetime
 import sys
-from enum import Enum
+from datetime import datetime
+from typing import Any
 
-class Level(Enum):
-    DEBUG = "[DEBUG]"
-    QUEST = "[QUEST]"
-    LOOT = "[LOOT]"
-    CRIT = "[CRIT]"
+class GamingLogger:
+    def __init__(self, debug_mode: bool = False):
+        self.debug_mode = debug_mode
+        self.colors = {'info': '\033[94m', 'warn': '\033[93m', 'crit': '\033[91m', 'end': '\033[0m'}
 
-def get_timestamp():
-    return datetime.datetime.now().strftime("%H:%M:%S")
+    def log(self, level: str, message: str, metadata: dict[str, Any] | None = None) -> None:
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        color = self.colors.get(level.lower(), '')
+        prefix = f"{color}[{level.upper()}][{timestamp}]{self.colors['end']}"
+        
+        output = f"{prefix} {message}"
+        if metadata:
+            output += f" | context: {metadata}"
+            
+        sys.stdout.write(output + '\n')
 
-def log_event(level: Level, message: str, color: bool = True):
-    c = {
-        Level.DEBUG: "\033[94m",
-        Level.QUEST: "\033[92m",
-        Level.LOOT: "\033[93m",
-        Level.CRIT: "\033[91m"
-    }
-    reset = "\033[0m" if color else ""
-    prefix = f"{c.get(level, '')}{level.value} {get_timestamp()}{reset}"
-    print(f"{prefix} {message}", file=sys.stdout)
+    def capture_event(self, event_name: str, score: int, player_id: str = 'guest') -> None:
+        """Specialized hook for high-frequency gaming telemetry."""
+        severity = 'info'
+        if score < 0:
+            severity = 'crit'
+        
+        self.log(severity, f"event: {event_name}", {"score": score, "uid": player_id})
 
-class GameLogger:
-    def __init__(self, name: str):
-        self.name = name
-
-    def info(self, msg: str):
-        log_event(Level.QUEST, f"[{self.name}] {msg}")
-
-    def alert(self, msg: str):
-        log_event(Level.CRIT, f"!!! {self.name.upper()} ALERT: {msg} !!!")
-
-def debug_log(data: any):
-    if __debug__:
-        log_event(Level.DEBUG, f"INSPECTING: {data}")
+logger = GamingLogger()
