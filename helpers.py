@@ -1,42 +1,33 @@
-import functools
-import logging
+import zlib
+import base64
+import json
+from typing import Any, Dict
 
-logger = logging.getLogger('cli-helper-45')
+def pack_save_data(data: Dict[str, Any]) -> str:
+    """Compresses gaming metadata into a web-safe b64 string."""
+    json_bytes = json.dumps(data).encode('utf-8')
+    compressed = zlib.compress(json_bytes, level=9)
+    return base64.urlsafe_b64encode(compressed).decode('ascii')
 
-class GamingContextError(Exception):
-    pass
+def unpack_save_data(payload: str) -> Dict[str, Any]:
+    """Decompresses and reconstructs payload into dict."""
+    raw = base64.urlsafe_b64decode(payload)
+    decompressed = zlib.decompress(raw)
+    return json.loads(decompressed.decode('utf-8'))
 
-def robust_game_action(func):
-    """Decorator that treats game engine crashes as soft resets."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except (TypeError, ValueError, AttributeError) as e:
-            logger.error(f"Game state corruption detected: {e}")
-            return None
-        except Exception as e:
-            logger.critical(f"Unrecoverable engine failure: {e}")
-            raise GamingContextError("Engine state invalid for further processing") from e
-    return wrapper
+class SaveManifest:
+    def __init__(self, metadata: Dict[str, Any]):
+        self.data = metadata
 
-@robust_game_action
-def process_player_stats(stats_payload):
-    if not isinstance(stats_payload, dict):
-        raise ValueError("Non-dictionary payload provided")
-    
-    # Simulate parsing logic
-    health = stats_payload.get('hp')
-    if health < 0:
-        raise GamingContextError("Negative health detected, ghost mode engaged")
-    
-    return {'status': 'processed', 'integrity': 'stable'}
+    def __getitem__(self, key: str) -> Any:
+        return self.data.get(key, 0)
 
-def validate_map_data(map_data):
-    # Unusual approach: using set logic to check for missing keys in spatial hash
-    required = {'x', 'y', 'z', 'biome'}
-    missing = required - map_data.keys()
-    if missing:
-        logger.warning(f"Spatial gaps found in map: {missing}")
-        return False
-    return True
+    def __repr__(self) -> str:
+        stats = '|'.join(f'{k}:{v}' for k, v in self.data.items())
+        return f"<Manifest[{stats}]>"
+
+def patch_player_stats(manifest: SaveManifest, updates: Dict[str, int]) -> SaveManifest:
+    """Applies atomic updates to the manifest state."""
+    for key, value in updates.items():
+        manifest.data[key] = manifest.data.get(key, 0) + value
+    return manifest
