@@ -1,29 +1,33 @@
+import logging
+from logging.handlers import RotatingFileHandler
 import sys
-from datetime import datetime
-from typing import Any
+import os
 
-class GamingLogger:
-    def __init__(self, debug_mode: bool = False):
-        self.debug_mode = debug_mode
-        self.colors = {'info': '\033[94m', 'warn': '\033[93m', 'crit': '\033[91m', 'end': '\033[0m'}
+def setup_gaming_logger(name='cli-helper-45', log_file='game_state.log'):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
 
-    def log(self, level: str, message: str, metadata: dict[str, Any] | None = None) -> None:
-        timestamp = datetime.now().strftime('%H:%M:%S')
-        color = self.colors.get(level.lower(), '')
-        prefix = f"{color}[{level.upper()}][{timestamp}]{self.colors['end']}"
-        
-        output = f"{prefix} {message}"
-        if metadata:
-            output += f" | context: {metadata}"
-            
-        sys.stdout.write(output + '\n')
+    formatter = logging.Formatter(
+        '[%(asctime)s] [PLAYER_LOG] [%(levelname)s] >> %(message)s',
+        datefmt='%H:%M:%S'
+    )
 
-    def capture_event(self, event_name: str, score: int, player_id: str = 'guest') -> None:
-        """Specialized hook for high-frequency gaming telemetry."""
-        severity = 'info'
-        if score < 0:
-            severity = 'crit'
-        
-        self.log(severity, f"event: {event_name}", {"score": score, "uid": player_id})
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    
+    file_handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=1024 * 1024 * 5, 
+        backupCount=3
+    )
+    file_handler.setFormatter(formatter)
 
-logger = GamingLogger()
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+    
+    logger.info('engine initialized successfully')
+    return logger
+
+if __name__ == '__main__':
+    log = setup_gaming_logger()
+    log.debug('verbose tracing active')
