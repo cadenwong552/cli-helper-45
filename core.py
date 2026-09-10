@@ -1,69 +1,41 @@
-import argparse
-import random
-from dataclasses import dataclass, field
-from typing import List, Dict
-@dataclass
-class GameState:
-    game_name: str
-    players: List[str] = field(default_factory=list)
-    scores: Dict[str, int] = field(default_factory=dict)
-    history: List[str] = field(default_factory=list)
-class GamingCore:
-    def __init__(self):
-        self.states: Dict[str, GameState] = {}
-        self.game_types = ["fps", "moba", "rpg"]
-    def create_game(self, name: str, players: List[str]) -> GameState:
-        if name not in self.game_types:
-            name = random.choice(self.game_types)
-        state = GameState(name, players)
-        for p in players:
-            state.scores[p] = 0
-        self.states[name] = state
-        return state
-    def update_score(self, game_name: str, player: str, points: int) -> None:
-        if game_name in self.states:
-            state = self.states[game_name]
-            if player in state.scores:
-                state.scores[player] += points
-                state.history.append(f"{player} scored {points}")
-    def get_leaderboard(self, game_name: str) -> Dict[str, int]:
-        if game_name in self.states:
-            return dict(sorted(self.states[game_name].scores.items(), key=lambda x: x[1], reverse=True))
-        return {}
-    def simulate_round(self, game_name: str) -> str:
-        if game_name in self.states:
-            state = self.states[game_name]
-            winner = random.choice(state.players)
-            self.update_score(game_name, winner, random.randint(1, 10))
-            return f"Round won by {winner}"
-        return "No game active"
-    def cleanup_sessions(self) -> int:
-        count = len(self.states)
-        self.states.clear()
-        return count
-def main():
-    core = GamingCore()
-    parser = argparse.ArgumentParser(description="Gaming CLI Helper")
-    parser.add_argument("action", choices=["create", "score", "leaderboard", "simulate", "cleanup"])
-    parser.add_argument("--game", default="rpg")
-    parser.add_argument("--players", nargs="+", default=["player1"])
-    parser.add_argument("--player", default="player1")
-    parser.add_argument("--points", type=int, default=5)
-    args = parser.parse_args()
-    if args.action == "create":
-        state = core.create_game(args.game, args.players)
-        print(f"Created game: {state.game_name} with {state.players}")
-    elif args.action == "score":
-        core.update_score(args.game, args.player, args.points)
-        print(f"Updated score for {args.player}")
-    elif args.action == "leaderboard":
-        lb = core.get_leaderboard(args.game)
-        print("Leaderboard:", lb)
-    elif args.action == "simulate":
-        result = core.simulate_round(args.game)
-        print(result)
-    elif args.action == "cleanup":
-        cleaned = core.cleanup_sessions()
-        print(f"Cleaned {cleaned} sessions")
+import logging
+from logging.handlers import RotatingFileHandler
+import os
+
+class RetroGamingFormatter(logging.Formatter):
+    LEVEL_BADGES = {
+        logging.DEBUG: "\033[36m[EXP +5]\033[0m",
+        logging.INFO: "\033[32m[HP 100%]\033[0m",
+        logging.WARNING: "\033[33m[MANA LOW]\033[0m",
+        logging.ERROR: "\033[31m[CRIT HIT]\033[0m",
+        logging.CRITICAL: "\033[35m[GAME OVER]\033[0m",
+    }
+
+    def format(self, record):
+        badge = self.LEVEL_BADGES.get(record.levelno, "[GAME]")
+        time_str = self.formatTime(record, "%H:%M:%S")
+        return f"{time_str} {badge} {record.getMessage()}"
+
+def setup_game_logger(log_file="cli_helper.log", max_bytes=524288, backup_count=3):
+    logger = logging.getLogger("cli_helper_45")
+    logger.setLevel(logging.DEBUG)
+
+    if logger.handlers:
+        return logger
+
+    file_handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
+    file_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(RetroGamingFormatter())
+    logger.addHandler(console_handler)
+
+    return logger
+
 if __name__ == "__main__":
-    main()
+    game_log = setup_game_logger()
+    game_log.info("Player spawned in server zone 4")
+    game_log.warning("Inventory capacity reaching threshold")
+    game_log.error("Boss hit missed target coordinate")
