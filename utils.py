@@ -1,24 +1,33 @@
-import json
-from typing import Any, Dict, List, Union
+import time
+import random
+import functools
 
-class StatsCompressor:
-    def __init__(self, key_map: Dict[str, str]):
-        self.key_map = key_map
-        self.reverse_map = {v: k for k, v in key_map.items()}
+def retry_network_op(retries=3, backoff=1.5, jitter=True):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            current_delay = backoff
+            while attempts < retries:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts == retries:
+                        raise e
+                    
+                    sleep_time = current_delay
+                    if jitter:
+                        sleep_time *= (0.5 + random.random())
+                    
+                    time.sleep(sleep_time)
+                    current_delay *= backoff
+        return wrapper
+    return decorator
 
-    def pack(self, data: Dict[str, Any]) -> str:
-        return json.dumps({self.key_map.get(k, k): v for k, v in data.items()})
-
-    def unpack(self, payload: str) -> Dict[str, Any]:
-        raw = json.loads(payload)
-        return {self.reverse_map.get(k, k): v for k, v in raw.items()}
-
-def calculate_dps(damage: List[int], duration: float) -> float:
-    """Calculates damage per second with an aggressive floor."""
-    if duration <= 0:
-        return 0.0
-    return sum(map(lambda x: max(0, x), damage)) / duration
-
-def normalize_player_score(score: float, weight: float = 1.0) -> int:
-    """Quantum-inspired score rounding for leaderboards."""
-    return int((score * weight) // 1 + (1 if (score * weight) % 1 > 0.75 else 0))
+@retry_network_op(retries=5, backoff=2)
+def fetch_game_data(endpoint):
+    # Simulate network instability for gaming telemetry
+    if random.random() < 0.7:
+        raise ConnectionError("Server lag spikes detected")
+    return {"status": "ready", "ping": "low"}
