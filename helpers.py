@@ -1,33 +1,49 @@
-import zlib
-import base64
-import json
-from typing import Any, Dict
+import logging
+from logging.handlers import RotatingFileHandler
+import sys
 
-def pack_save_data(data: Dict[str, Any]) -> str:
-    """Compresses gaming metadata into a web-safe b64 string."""
-    json_bytes = json.dumps(data).encode('utf-8')
-    compressed = zlib.compress(json_bytes, level=9)
-    return base64.urlsafe_b64encode(compressed).decode('ascii')
+class GamingConsoleFormatter(logging.Formatter):
+    """Custom log formatter adding retro arcade flavor to standard output."""
+    LEVEL_TAGS = {
+        'DEBUG': '\033[36m[QUEST_DEBUG]\033[0m',
+        'INFO': '\033[32m[EXP_GAIN]\033[0m',
+        'WARNING': '\033[33m[HP_LOW]\033[0m',
+        'ERROR': '\033[31m[GAME_OVER]\033[0m',
+        'CRITICAL': '\033[35m[BOSS_RAGE]\033[0m'
+    }
 
-def unpack_save_data(payload: str) -> Dict[str, Any]:
-    """Decompresses and reconstructs payload into dict."""
-    raw = base64.urlsafe_b64decode(payload)
-    decompressed = zlib.decompress(raw)
-    return json.loads(decompressed.decode('utf-8'))
+    def format(self, record):
+        tag = self.LEVEL_TAGS.get(record.levelname, f"[{record.levelname}]")
+        original = super().format(record)
+        return f"{tag} {original}"
 
-class SaveManifest:
-    def __init__(self, metadata: Dict[str, Any]):
-        self.data = metadata
+def setup_quest_logger(log_file="quest.log", max_bytes=5242880, backup_count=5):
+    """Sets up logger with custom rotation and arcade style console output."""
+    logger = logging.getLogger("cli_helper_45")
+    logger.setLevel(logging.DEBUG)
 
-    def __getitem__(self, key: str) -> Any:
-        return self.data.get(key, 0)
+    if logger.handlers:
+        return logger
 
-    def __repr__(self) -> str:
-        stats = '|'.join(f'{k}:{v}' for k, v in self.data.items())
-        return f"<Manifest[{stats}]>"
+    file_handler = RotatingFileHandler(
+        log_file, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8"
+    )
+    file_formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    )
+    file_handler.setFormatter(file_formatter)
+    file_handler.setLevel(logging.DEBUG)
 
-def patch_player_stats(manifest: SaveManifest, updates: Dict[str, int]) -> SaveManifest:
-    """Applies atomic updates to the manifest state."""
-    for key, value in updates.items():
-        manifest.data[key] = manifest.data.get(key, 0) + value
-    return manifest
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(GamingConsoleFormatter("%(message)s"))
+    console_handler.setLevel(logging.INFO)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    return logger
+
+if __name__ == "__main__":
+    game_log = setup_quest_logger()
+    game_log.info("Hero spawned in main loop")
+    game_log.warning("Low stamina detected")
+    game_log.error("Matchmaking server timeout")
