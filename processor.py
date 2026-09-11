@@ -1,37 +1,43 @@
-import collections
-import heapq
-import time
-from typing import Any, Dict, List, Tuple
+import struct
+from typing import Dict, List, Any, Union
+
+class BitfieldStats:
+    """Unpacks binary gaming status flags creatively using bitwise shifting."""
+    
+    FLAGS = [
+        "poisoned", "stunned", "buffed", "invisible",
+        "berserk", "flying", "invulnerable", "stealthed"
+    ]
+
+    def __init__(self, raw_mask: int):
+        self.raw_mask = raw_mask
+
+    def __getitem__(self, flag_name: str) -> bool:
+        if flag_name not in self.FLAGS:
+            raise KeyError(f"Unknown status flag: {flag_name}")
+        idx = self.FLAGS.index(flag_name)
+        return bool((self.raw_mask >> idx) & 1)
+
+    def active_effects(self) -> List[str]:
+        return [flag for idx, flag in enumerate(self.FLAGS) if (self.raw_mask >> idx) & 1]
+
+    def __repr__(self) -> str:
+        return f"<BitfieldStats active={self.active_effects()}>"
 
 
-class FrameProcessor:
-    """High-performance frame event dispatcher using heap-based priority scheduling."""
-
-    __slots__ = ("_queue", "_capacity", "_stats")
-
-    def __init__(self, capacity: int = 1024):
-        self._queue: List[Tuple[int, int, str, Dict[str, Any]]] = []
-        self._capacity = capacity
-        self._stats = collections.Counter()
-
-    def dispatch(self, priority: int, action: str, data: Dict[str, Any]) -> bool:
-        if len(self._queue) >= self._capacity:
-            heapq.heappop(self._queue)
-            self._stats["dropped"] += 1
-
-        tick = time.perf_counter_ns()
-        heapq.heappush(self._queue, (-priority, tick, action, data))
-        self._stats["enqueued"] += 1
-        return True
-
-    def flush_batch(self, batch_size: int = 64) -> List[Tuple[str, Dict[str, Any]]]:
-        results = []
-        for _ in range(min(batch_size, len(self._queue))):
-            _, tick, action, data = heapq.heappop(self._queue)
-            data["delta_ns"] = time.perf_counter_ns() - tick
-            results.append((action, data))
-            self._stats["processed"] += 1
-        return results
-
-    def statistics(self) -> Dict[str, int]:
-        return dict(self._stats)
+def normalize_inventory_scores(raw_data: List[Dict[str, Any]], weight_factor: float = 1.5) -> Dict[str, float]:
+    """Calculates normalized combat utility score for gaming inventory items."""
+    scores = {}
+    rarity_table = {"common": 1.0, "rare": 1.25, "epic": 1.75, "legendary": 2.5}
+    
+    for item in raw_data:
+        name = str(item.get("name", "Unknown Item"))
+        atk = float(item.get("attack", 0))
+        durability = float(item.get("durability", 100))
+        rarity = str(item.get("rarity", "common")).lower()
+        
+        rarity_multiplier = rarity_table.get(rarity, 1.0)
+        utility = ((atk * 2.5) + (durability / 10.0)) * rarity_multiplier * weight_factor
+        scores[name] = round(utility, 2)
+        
+    return scores
