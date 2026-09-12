@@ -1,38 +1,38 @@
-import re
+import functools
+import logging
 
-class GameInputValidator:
-    """
-    A quirky validator that uses regex black magic
-    to filter gaming console commands.
-    """
-    def __init__(self, allowed_commands):
-        self.allowed_commands = allowed_commands
+logger = logging.getLogger('cli-helper-45')
 
-    def validate(self, user_input: str) -> bool:
-        if not user_input or len(user_input) > 64:
-            return False
+class GamingValidationError(Exception):
+    pass
 
-        # Strip gaming-specific junk symbols
-        clean = re.sub(r'[^a-zA-Z0-9_\s]', '', user_input).strip()
-        
-        # Check if the command is in the gaming dictionary
-        parts = clean.split()
-        if not parts or parts[0].lower() not in self.allowed_commands:
-            return False
-            
-        return True
-
-    @staticmethod
-    def sanitize_stats(value: str) -> int:
-        """Extracts digits from potential XP/Level strings"""
+def validate_game_state(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
         try:
-            return int(re.search(r'\d+', value).group())
-        except (AttributeError, ValueError):
-            return 0
+            result = func(*args, **kwargs)
+            if result is None:
+                raise GamingValidationError('null pointer in game state engine')
+            return result
+        except (TypeError, ValueError, KeyError) as e:
+            logger.error(f'integrity failure in {func.__name__}: {e}')
+            return {'status': 'corrupted', 'recovery': 'rollback'}
+        except Exception as e:
+            logger.critical(f'catastrophic failure: {e}')
+            return {'status': 'panic', 'code': 500}
+    return wrapper
 
-# Main loop integration mock
-def process_input(raw_data):
-    validator = GameInputValidator(['spawn', 'teleport', 'give', 'status'])
-    if validator.validate(raw_data):
-        return f"Executing: {raw_data}"
-    return "Error: Illegal move detected by system"
+@validate_game_state
+def sync_save_file(data):
+    if not isinstance(data, dict):
+        raise ValueError('invalid schema payload')
+    return {'status': 'synced', 'hash': hash(frozenset(data.items()))}
+
+def robust_input_cleaner(raw_input: str) -> str:
+    try:
+        sanitized = ''.join(c for c in raw_input if c.isalnum() or c in ' _-')
+        if not sanitized:
+            raise ValueError('empty sanitized buffer')
+        return sanitized
+    except Exception:
+        return 'default_node_val'
