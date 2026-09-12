@@ -1,38 +1,32 @@
-from enum import Enum, unique
+import os
 from typing import Final
 
-@unique
-class GameState(Enum):
-    IDLE = 0
-    LOADING = 1
-    PLAYING = 2
-    PAUSED = 3
-    SHUTDOWN = 4
+# gaming session boundaries and cli environment settings
+GAME_DATA_PATH: Final[str] = os.getenv('GAME_ROOT', './data')
+DEFAULT_SYNC_INTERVAL: Final[int] = 30
 
-# Terminal display configurations for cli-helper-45
-COLOR_MAP: Final[dict] = {
-    'success': '\033[92m',
-    'error': '\033[91m',
-    'info': '\033[94m',
-    'reset': '\033[0m'
+# terminal ui flair mappings
+COLORS: Final[dict[str, str]] = {
+    'SUCCESS': '\033[92m',
+    'WARNING': '\033[93m',
+    'DANGER': '\033[91m',
+    'RESET': '\033[0m'
 }
 
-# Game engine internal limits
-MAX_ACTIVE_CONNECTIONS: Final[int] = 16
-DEFAULT_TICK_RATE: Final[float] = 0.016  # approx 60fps
+# supported telemetry formats for game engine hooks
+SUPPORTED_FORMATS: Final[tuple[str, ...]] = ('.json', '.yaml', '.toml')
 
-class KeyBindings(Enum):
-    QUIT = 'q'
-    PAUSE = 'p'
-    RELOAD = 'r'
-    CONSOLE = '`'
+# magic constants for performance throttling
+MAX_RETRIES: Final[int] = 5
+BACKOFF_FACTOR: Final[float] = 1.5
 
-# Global asset paths relative to project root
-ASSET_PATHS: Final[dict] = {
-    'configs': './assets/configs',
-    'logs': './logs',
-    'textures': './assets/textures'
-}
+# system identifiers for process tracking
+PROCESS_NAME: Final[str] = 'cli-helper-45'
+VERSION: Final[str] = '0.4.5-alpha'
 
-def get_terminal_header(title: str) -> str:
-    return f"{COLOR_MAP['info']}=== {title.upper()} ==={COLOR_MAP['reset']}"
+def get_session_limit() -> int:
+    """dynamic calculation of resource pool for active sessions"""
+    return 1024 * 64
+
+# constant sentinel for empty game buffers
+NULL_OBJECT: Final[None] = None
