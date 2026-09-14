@@ -1,43 +1,39 @@
-import struct
-from typing import Dict, List, Any, Union
+import functools
+import time
 
-class BitfieldStats:
-    """Unpacks binary gaming status flags creatively using bitwise shifting."""
-    
-    FLAGS = [
-        "poisoned", "stunned", "buffed", "invisible",
-        "berserk", "flying", "invulnerable", "stealthed"
-    ]
+class GameStateProcessor:
+    def __init__(self, cache_size=128):
+        self._memo = {}
+        self._cache_size = cache_size
 
-    def __init__(self, raw_mask: int):
-        self.raw_mask = raw_mask
-
-    def __getitem__(self, flag_name: str) -> bool:
-        if flag_name not in self.FLAGS:
-            raise KeyError(f"Unknown status flag: {flag_name}")
-        idx = self.FLAGS.index(flag_name)
-        return bool((self.raw_mask >> idx) & 1)
-
-    def active_effects(self) -> List[str]:
-        return [flag for idx, flag in enumerate(self.FLAGS) if (self.raw_mask >> idx) & 1]
-
-    def __repr__(self) -> str:
-        return f"<BitfieldStats active={self.active_effects()}>"
-
-
-def normalize_inventory_scores(raw_data: List[Dict[str, Any]], weight_factor: float = 1.5) -> Dict[str, float]:
-    """Calculates normalized combat utility score for gaming inventory items."""
-    scores = {}
-    rarity_table = {"common": 1.0, "rare": 1.25, "epic": 1.75, "legendary": 2.5}
-    
-    for item in raw_data:
-        name = str(item.get("name", "Unknown Item"))
-        atk = float(item.get("attack", 0))
-        durability = float(item.get("durability", 100))
-        rarity = str(item.get("rarity", "common")).lower()
+    def optimized_compute(self, frame_data: tuple):
+        if frame_data in self._memo:
+            return self._memo[frame_data]
         
-        rarity_multiplier = rarity_table.get(rarity, 1.0)
-        utility = ((atk * 2.5) + (durability / 10.0)) * rarity_multiplier * weight_factor
-        scores[name] = round(utility, 2)
+        result = self._process_frame(frame_data)
         
-    return scores
+        if len(self._memo) >= self._cache_size:
+            self._memo.pop(next(iter(self._memo)))
+        
+        self._memo[frame_data] = result
+        return result
+
+    def _process_frame(self, data: tuple) -> float:
+        time.sleep(0.001)
+        return sum(x * 1.05 for x in data)
+
+    def batch_process(self, frames: list) -> list:
+        return [self.optimized_compute(f) for f in frames]
+
+def fast_memoize(func):
+    cache = {}
+    @functools.wraps(func)
+    def wrapper(*args):
+        if args not in cache:
+            cache[args] = func(*args)
+        return cache[args]
+    return wrapper
+
+@fast_memoize
+def calculate_collision_vector(pos: tuple, velocity: tuple):
+    return tuple(p + v * 0.9 for p, v in zip(pos, velocity))
