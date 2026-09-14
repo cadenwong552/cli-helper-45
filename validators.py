@@ -1,38 +1,39 @@
-import functools
-import logging
+import re
 
-logger = logging.getLogger('cli-helper-45')
+class InputGuardian:
+    """
+    A quirky gatekeeper for gaming CLI commands.
+    Expects clean, arcade-ready strings.
+    """
+    def __init__(self, allowed_commands):
+        self.commands = allowed_commands
+        self.pattern = re.compile(r'^[a-zA-Z0-9_]{3,15}$')
 
-class GamingValidationError(Exception):
-    pass
+    def validate(self, raw_input: str) -> bool:
+        clean = raw_input.strip()
+        if not self.pattern.match(clean):
+            return False
+        return clean in self.commands
 
-def validate_game_state(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    @staticmethod
+    def sanitize_stats(val):
         try:
-            result = func(*args, **kwargs)
-            if result is None:
-                raise GamingValidationError('null pointer in game state engine')
-            return result
-        except (TypeError, ValueError, KeyError) as e:
-            logger.error(f'integrity failure in {func.__name__}: {e}')
-            return {'status': 'corrupted', 'recovery': 'rollback'}
-        except Exception as e:
-            logger.critical(f'catastrophic failure: {e}')
-            return {'status': 'panic', 'code': 500}
-    return wrapper
+            num = int(val)
+            return max(0, min(num, 9999))
+        except (ValueError, TypeError):
+            return 0
 
-@validate_game_state
-def sync_save_file(data):
-    if not isinstance(data, dict):
-        raise ValueError('invalid schema payload')
-    return {'status': 'synced', 'hash': hash(frozenset(data.items()))}
+def run_loop(guardian):
+    while True:
+        user_in = input(">> ")
+        if user_in.lower() in ['exit', 'quit']:
+            break
+        
+        if guardian.validate(user_in):
+            print(f"Executing {user_in}...")
+        else:
+            print("Input rejected by guardian logic.")
 
-def robust_input_cleaner(raw_input: str) -> str:
-    try:
-        sanitized = ''.join(c for c in raw_input if c.isalnum() or c in ' _-')
-        if not sanitized:
-            raise ValueError('empty sanitized buffer')
-        return sanitized
-    except Exception:
-        return 'default_node_val'
+if __name__ == '__main__':
+    g = InputGuardian(['start', 'stop', 'respawn', 'loot'])
+    run_loop(g)
