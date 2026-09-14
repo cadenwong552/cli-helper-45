@@ -1,39 +1,35 @@
-import re
+import functools
+import logging
 
-class InputGuardian:
-    """
-    A quirky gatekeeper for gaming CLI commands.
-    Expects clean, arcade-ready strings.
-    """
-    def __init__(self, allowed_commands):
-        self.commands = allowed_commands
-        self.pattern = re.compile(r'^[a-zA-Z0-9_]{3,15}$')
+logger = logging.getLogger('cli-helper-45')
 
-    def validate(self, raw_input: str) -> bool:
-        clean = raw_input.strip()
-        if not self.pattern.match(clean):
-            return False
-        return clean in self.commands
+class GamingInputError(Exception):
+    pass
 
-    @staticmethod
-    def sanitize_stats(val):
+def validate_game_state(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
         try:
-            num = int(val)
-            return max(0, min(num, 9999))
-        except (ValueError, TypeError):
-            return 0
+            result = func(*args, **kwargs)
+            if result is None:
+                raise GamingInputError("Null pointer in game state engine")
+            return result
+        except (TypeError, ValueError) as e:
+            logger.error(f"Invalid transition state: {e}")
+            return {'status': 'err', 'msg': 'corrupted_memory_buffer'}
+        except Exception as e:
+            logger.critical(f"Unknown system failure: {e}")
+            raise
+    return wrapper
 
-def run_loop(guardian):
-    while True:
-        user_in = input(">> ")
-        if user_in.lower() in ['exit', 'quit']:
-            break
+@validate_game_state
+def process_player_input(cmd_data: dict):
+    if 'player_id' not in cmd_data:
+        raise ValueError("missing_player_context")
+    
+    # Logic for parsing gaming inputs
+    raw_input = cmd_data.get('action', '')
+    if not isinstance(raw_input, str):
+        raise TypeError("action_buffer_type_mismatch")
         
-        if guardian.validate(user_in):
-            print(f"Executing {user_in}...")
-        else:
-            print("Input rejected by guardian logic.")
-
-if __name__ == '__main__':
-    g = InputGuardian(['start', 'stop', 'respawn', 'loot'])
-    run_loop(g)
+    return {'status': 'ok', 'processed': raw_input.strip().upper()}
