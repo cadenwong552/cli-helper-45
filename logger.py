@@ -1,36 +1,33 @@
 import logging
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
-import sys
+import os
 
-def get_gamer_logger(name: str = 'cli-helper-45') -> logging.Logger:
-    log_path = Path('logs') / 'game_events.log'
-    log_path.parent.mkdir(exist_ok=True)
+def get_gaming_logger(name: str = "cli-helper-45") -> logging.Logger:
+    log_path = os.path.join(os.getcwd(), "logs")
+    os.makedirs(log_path, exist_ok=True)
     
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     
     formatter = logging.Formatter(
-        '[%(asctime)s] LEVEL:%(levelname)s | CH-45_CORE | %(message)s',
-        datefmt='%H:%M:%S'
+        "[%(asctime)s] | %(levelname)s | %(name)s | %(message)s",
+        datefmt="%H:%M:%S"
     )
-
+    
+    file_handler = RotatingFileHandler(
+        os.path.join(log_path, "gameplay.log"),
+        maxBytes=1024 * 1024 * 5,
+        backupCount=3
+    )
+    file_handler.setFormatter(formatter)
+    
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    
     if not logger.handlers:
-        stream_handler = logging.StreamHandler(sys.stdout)
-        stream_handler.setFormatter(formatter)
-        
-        # Rolling over every 1MB, keeping 3 backups for retro style
-        file_handler = RotatingFileHandler(
-            log_path, 
-            maxBytes=1_048_576, 
-            backupCount=3
-        )
-        file_handler.setFormatter(formatter)
-        
-        logger.addHandler(stream_handler)
         logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
         
     return logger
 
-# Instantiate for global gaming usage
-log = get_gamer_logger()
+log = get_gaming_logger()
