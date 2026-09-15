@@ -1,35 +1,40 @@
-import logging
-import os
-from logging.handlers import RotatingFileHandler
+import time
+import functools
+from pathlib import Path
 
-def setup_game_logger(name: str = 'cli-helper-45', log_file: str = 'game_engine.log') -> logging.Logger:
-    """
-    A logger that spins like a loot box.
-    When it hits 1MB, it drops the old logs and refreshes.
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+def gaming_event_logger(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = time.perf_counter() - start_time
+        log_entry = f"[{time.strftime('%H:%M:%S')}] Event: {func.__name__} | Latency: {duration:.4f}s"
+        try:
+            with open("game_engine.log", "a") as log_file:
+                log_file.write(f"{log_entry}\n")
+        except IOError:
+            print(f"Critical: Log I/O failure on {func.__name__}")
+        return result
+    return wrapper
 
-    formatter = logging.Formatter(
-        '[%(asctime)s] {%(levelname)s} (lvl:%(lineno)d) :: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
+class TelemetryCollector:
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        self.data_store = {}
 
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    def record(self, key: str, value: any):
+        self.data_store[key] = value
+        if len(self.data_store) > 100:
+            self._flush_to_disk()
 
-    file_handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=1_048_576, 
-        backupCount=5
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    def _flush_to_disk(self):
+        with open(f"telemetry_{self.session_id}.jsonl", "a") as f:
+            import json
+            f.write(json.dumps(self.data_store) + "\n")
+            self.data_store.clear()
 
-    return logger
+    def __enter__(self):
+        return self
 
-if __name__ == '__main__':
-    log = setup_game_logger()
-    log.info('initializing gaming subsystem')
-    log.debug('loading assets into memory cache')
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._flush_to_disk()
