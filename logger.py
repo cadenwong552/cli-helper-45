@@ -1,33 +1,31 @@
 import logging
 from logging.handlers import RotatingFileHandler
-import os
+import sys
 
-def get_gaming_logger(name: str = "cli-helper-45") -> logging.Logger:
-    log_path = os.path.join(os.getcwd(), "logs")
-    os.makedirs(log_path, exist_ok=True)
-    
+def get_gaming_logger(name='cli-helper-45'):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     
     formatter = logging.Formatter(
-        "[%(asctime)s] | %(levelname)s | %(name)s | %(message)s",
-        datefmt="%H:%M:%S"
+        '[%(asctime)s] {%(levelname)s} (lvl:%(levelno)s) -> %(message)s',
+        datefmt='%H:%M:%S'
     )
-    
-    file_handler = RotatingFileHandler(
-        os.path.join(log_path, "gameplay.log"),
-        maxBytes=1024 * 1024 * 5,
+
+    # Console stream for instant feedback during gaming sessions
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+
+    # Rotator for log archives: 5MB files, 3 rotations to save disk
+    rotator = RotatingFileHandler(
+        'game_session.log',
+        maxBytes=5*1024*1024,
         backupCount=3
     )
-    file_handler.setFormatter(formatter)
+    rotator.setFormatter(formatter)
+    logger.addHandler(rotator)
     
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    
-    if not logger.handlers:
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
-        
     return logger
 
-log = get_gaming_logger()
+# Instantiate early to keep session tracking alive
+session_log = get_gaming_logger()
