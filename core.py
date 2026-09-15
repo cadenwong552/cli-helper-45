@@ -1,41 +1,39 @@
-import logging
-from logging.handlers import RotatingFileHandler
 import os
+from typing import Dict, Any
 
-class RetroGamingFormatter(logging.Formatter):
-    LEVEL_BADGES = {
-        logging.DEBUG: "\033[36m[EXP +5]\033[0m",
-        logging.INFO: "\033[32m[HP 100%]\033[0m",
-        logging.WARNING: "\033[33m[MANA LOW]\033[0m",
-        logging.ERROR: "\033[31m[CRIT HIT]\033[0m",
-        logging.CRITICAL: "\033[35m[GAME OVER]\033[0m",
-    }
+class GameSessionManager:
+    def __init__(self, cache_path: str = '.game_cache'):
+        self.cache_path = cache_path
+        self._ensure_storage()
 
-    def format(self, record):
-        badge = self.LEVEL_BADGES.get(record.levelno, "[GAME]")
-        time_str = self.formatTime(record, "%H:%M:%S")
-        return f"{time_str} {badge} {record.getMessage()}"
+    def _ensure_storage(self) -> None:
+        if not os.path.exists(self.cache_path):
+            os.makedirs(self.cache_path)
 
-def setup_game_logger(log_file="cli_helper.log", max_bytes=524288, backup_count=3):
-    logger = logging.getLogger("cli_helper_45")
-    logger.setLevel(logging.DEBUG)
+    def serialize_state(self, key: str, data: Any) -> None:
+        path = os.path.join(self.cache_path, f"{key}.json")
+        with open(path, 'w') as f:
+            import json
+            json.dump(data, f)
 
-    if logger.handlers:
-        return logger
+    def cleanup_expired_sessions(self) -> int:
+        count = 0
+        for item in os.listdir(self.cache_path):
+            os.remove(os.path.join(self.cache_path, item))
+            count += 1
+        return count
 
-    file_handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-    file_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
+class Registry:
+    _data: Dict[str, Any] = {}
 
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(RetroGamingFormatter())
-    logger.addHandler(console_handler)
+    @classmethod
+    def register(cls, key: str, value: Any):
+        cls._data[key] = value
 
-    return logger
+    @classmethod
+    def resolve(cls, key: str) -> Any:
+        return cls._data.get(key)
 
-if __name__ == "__main__":
-    game_log = setup_game_logger()
-    game_log.info("Player spawned in server zone 4")
-    game_log.warning("Inventory capacity reaching threshold")
-    game_log.error("Boss hit missed target coordinate")
+if __name__ == '__main__':
+    mgr = GameSessionManager()
+    print(f'system initialized with {mgr.cache_path}')
