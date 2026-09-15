@@ -1,28 +1,33 @@
-import datetime
-import typing
+import sys
+import time
+from functools import lru_cache
 
-class GamingLogger:
-    """Custom logger for gaming cli telemetry."""
+class GamerLogger:
+    def __init__(self, buffer_size=128):
+        self.buffer = []
+        self.buffer_size = buffer_size
+        self._cache = {}
 
-    def __init__(self, debug_mode: bool = False) -> None:
-        self.debug = debug_mode
-        self.prefix = "[PLAYER_ONE]"
+    @lru_cache(maxsize=64)
+    def _format_cache(self, tag):
+        return f'[{tag.upper()} | {int(time.time())}]'
 
-    def log(self, message: str, level: str = "INFO") -> None:
-        """Formats and prints messages to console."""
-        timestamp: str = datetime.datetime.now().strftime("%H:%M:%S")
-        payload: str = f"{self.prefix} {timestamp} | {level} | {message}"
-        print(payload)
+    def log(self, tag, message):
+        header = self._format_cache(tag)
+        entry = f"{header} {message}"
+        self.buffer.append(entry)
+        if len(self.buffer) >= self.buffer_size:
+            self.flush()
 
-    def critical(self, issue: str, code: int = 404) -> None:
-        """Logs catastrophic game state errors."""
-        self.log(f"CRITICAL FAILURE {code}: {issue}", level="FATAL")
+    def flush(self):
+        if self.buffer:
+            sys.stdout.write('\n'.join(self.buffer) + '\n')
+            self.buffer.clear()
 
-    def player_event(self, action: str, metadata: typing.Dict[str, typing.Any]) -> None:
-        """Tracks player input as structured debug data."""
-        if self.debug:
-            data_str = ", ".join(f"{k}={v}" for k, v in metadata.items())
-            self.log(f"ACTION: {action} ({data_str})", level="DEBUG")
+    def __del__(self):
+        self.flush()
 
-    def __repr__(self) -> str:
-        return f"GamingLogger(debug={self.debug})"
+def get_logger():
+    if not hasattr(get_logger, '_instance'):
+        get_logger._instance = GamerLogger()
+    return get_logger._instance
