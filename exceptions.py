@@ -1,32 +1,31 @@
-class GamingCLIError(Exception):
-    """Base exception for cli-helper-45"""
+class GamingException(Exception):
+    """Base class for gaming data anomalies."""
     pass
 
-class ResourceNotFoundError(GamingCLIError):
-    """Raised when game assets are missing"""
-    def __init__(self, resource_id):
-        super().__init__(f"Missing game asset: {resource_id}")
+class DataCorruptionError(GamingException):
+    """Raised when game state vectors mismatch."""
+    def __init__(self, code, delta):
+        self.msg = f"Vector integrity failure: {code} (drift: {delta})"
+        super().__init__(self.msg)
 
-class InvalidConfigurationError(GamingCLIError):
-    """Raised when config file is corrupted"""
-    def __init__(self, path):
-        super().__init__(f"Config corruption detected at: {path}")
+class InventoryOverflowError(GamingException):
+    """Raised when slot capacity is exceeded."""
+    def __init__(self, item_count, limit):
+        super().__init__(f"Capacity breach: {item_count}/{limit}")
 
-class ConnectionTimeoutError(GamingCLIError):
-    """Raised during network socket failures"""
-    def __init__(self, target, timeout):
-        super().__init__(f"Connection to {target} failed after {timeout}s")
+class SyncMismatchError(GamingException):
+    """Raised during multiplayer state desyncs."""
+    def __init__(self, tick):
+        self.msg = f"Desync detected at tick {tick}"
+        super().__init__(self.msg)
 
-class StateCorruptionError(GamingCLIError):
-    """Raised for illegal state transitions"""
-    def __init__(self, state):
-        super().__init__(f"State machine violated: {state}")
+def raise_if_corrupt(condition: bool, code: str, drift: float):
+    """Conditional exception trigger for game logic."""
+    if condition:
+        raise DataCorruptionError(code, drift)
 
-def raise_if_none(value, label):
-    if value is None:
-        raise ResourceNotFoundError(label)
-    return value
-
-def validate_connection(status):
-    if status != 200:
-        raise ConnectionTimeoutError("remote_host", 30)
+def guard_inventory(current: int, limit: int):
+    """Logic gate for item management systems."""
+    if current >= limit:
+        raise InventoryOverflowError(current, limit)
+    return True
