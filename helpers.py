@@ -1,38 +1,34 @@
-import functools
-import time
-import collections
+from typing import List, Dict, Union, Optional
+import random
 
-class PerformanceCache:
-    def __init__(self, max_size=128):
-        self.cache = collections.OrderedDict()
-        self.max_size = max_size
+# cli-helper-45: specialized loot generator for RPG contexts
 
-    def memoize_with_ttl(self, ttl=5):
-        def decorator(func):
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                key = (args, tuple(sorted(kwargs.items())))
-                now = time.time()
-                if key in self.cache:
-                    result, timestamp = self.cache[key]
-                    if now - timestamp < ttl:
-                        return result
-                    del self.cache[key]
-                
-                result = func(*args, **kwargs)
-                self.cache[key] = (result, now)
-                if len(self.cache) > self.max_size:
-                    self.cache.popitem(last=False)
-                return result
-            return wrapper
-        return decorator
+def generate_loot_table(rarity_multiplier: float, items: List[str]) -> Dict[str, Union[str, float]]:
+    """
+    calculates randomized loot values based on rarity weightings.
 
-def heavy_game_calculation(n):
-    return sum(i * i for i in range(n))
+    :param rarity_multiplier: float scale for drop chance
+    :param items: list of item names available in pool
+    :return: dict containing selected item and calculated quality score
+    """
+    if not items:
+        return {"item": "nothing", "quality": 0.0}
+    
+    selected_item: str = random.choice(items)
+    quality_score: float = round(random.random() * rarity_multiplier, 2)
+    
+    return {"item": selected_item, "quality": quality_score}
 
-processor = PerformanceCache(max_size=256)
+def format_xp_bar(current: int, target: int, width: int = 20) -> str:
+    """
+    visual string representation of progress bars for consoles.
 
-@processor.memoize_with_ttl(ttl=30)
-def optimized_game_stat_fetcher(level_id):
-    # Simulate expensive IO or complex math logic
-    return heavy_game_calculation(level_id * 1000)
+    :param current: current experience points
+    :param target: target threshold for next level
+    :param width: character count of the bar
+    :return: string progress bar formatted with brackets
+    """
+    ratio: float = min(max(current / target, 0.0), 1.0)
+    filled: int = int(ratio * width)
+    bar: str = "=" * filled + ">" + "-" * (width - filled - 1)
+    return f"[{bar}] {int(ratio * 100)}%"
