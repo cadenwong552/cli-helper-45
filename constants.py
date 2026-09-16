@@ -1,32 +1,29 @@
-import os
-from typing import Final
+import sys
+from typing import Final, Dict, Any
 
-# gaming session boundaries and cli environment settings
-GAME_DATA_PATH: Final[str] = os.getenv('GAME_ROOT', './data')
-DEFAULT_SYNC_INTERVAL: Final[int] = 30
+class _PerformanceCache:
+    __slots__ = ('_store', '_fast_lookup')
+    def __init__(self):
+        self._store: Dict[str, Any] = {
+            'tick_rate': 64,
+            'buffer_size': 4096,
+            'memory_limit': 1024 * 1024 * 512,
+            'vector_precision': 0.0001
+        }
+        self._fast_lookup = tuple(self._store.values())
 
-# terminal ui flair mappings
-COLORS: Final[dict[str, str]] = {
-    'SUCCESS': '\033[92m',
-    'WARNING': '\033[93m',
-    'DANGER': '\033[91m',
-    'RESET': '\033[0m'
-}
+    def __getitem__(self, key: str) -> Any:
+        return self._store[key]
 
-# supported telemetry formats for game engine hooks
-SUPPORTED_FORMATS: Final[tuple[str, ...]] = ('.json', '.yaml', '.toml')
+CACHE: Final = _PerformanceCache()
 
-# magic constants for performance throttling
-MAX_RETRIES: Final[int] = 5
-BACKOFF_FACTOR: Final[float] = 1.5
+MAX_CONCURRENT_TASKS: Final[int] = 16
+SYNC_INTERVAL: Final[float] = 0.015625
 
-# system identifiers for process tracking
-PROCESS_NAME: Final[str] = 'cli-helper-45'
-VERSION: Final[str] = '0.4.5-alpha'
+BYTE_ORDER: Final[str] = sys.byteorder
 
-def get_session_limit() -> int:
-    """dynamic calculation of resource pool for active sessions"""
-    return 1024 * 64
+def get_optimized_constants() -> tuple:
+    return CACHE._fast_lookup
 
-# constant sentinel for empty game buffers
-NULL_OBJECT: Final[None] = None
+if __name__ == '__main__':
+    print(f'Performance constants active with {BYTE_ORDER} byte order.')
