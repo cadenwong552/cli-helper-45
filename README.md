@@ -2,52 +2,49 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`cli-helper-45` is a high-performance Python CLI utility designed to streamline game server administration and asset management. It minimizes latency in configuration deployment, allowing developers to manage multi-environment gaming backend states with single-command efficiency.
+`cli-helper-45` is a lightweight Python command-line utility designed to streamline game server management and local session configuration. It eliminates repetitive setup tasks by providing rapid, automated triggers for environment variables and process handling.
 
 ### Features
 
-*   **Server State Snapshotting:** Quickly capture and export local dev-server configurations into JSON blueprints for rapid deployment.
-*   **Asset Compression Pipeline:** Automated batch processing to minify textures and compress audio files without losing metadata.
-*   **Integrated RCON Controller:** Built-in shell interface for executing remote console commands across distributed game server clusters.
-*   **Schema Validation:** Real-time checking of YAML game-logic files to prevent syntax-related runtime crashes before you deploy.
+*   **Process Governor:** Automatically detects and optimizes CPU affinity for high-performance game executables to minimize frame stutter.
+*   **Config Injector:** Seamlessly syncs local game settings files with cloud backups or custom preset directories.
+*   **Quick-Launch Hooks:** Enables pre-launch cleanup of cache directories and temporary logs with a single command.
+*   **Latency Diagnostic:** Built-in network check to ping specific game server regions before launching your session.
 
 ### Installation
 
-Ensure you have Python 3.9+ installed. You can install the tool directly from PyPI:
+Requires Python 3.8+ and `pip`.
 
 ```bash
-pip install cli-helper-45
-```
-
-Alternatively, for local development:
-
-```bash
+# Clone the repository
 git clone https://github.com/Developer/cli-helper-45.git
 cd cli-helper-45
+
+# Install dependencies
 pip install -r requirements.txt
-python setup.py install
+
+# Make executable
+chmod +x cli_helper.py
 ```
 
-### Basic Usage
+### Usage
 
-Manage your server configurations directly from the terminal. To validate your current configuration file, use:
+Use the helper to prepare your environment and launch your game automatically.
 
 ```bash
-cli-helper-45 validate --config ./game_server.yaml
+# Clean cache and apply performance profile for 'TitanFall-2'
+python cli_helper.py --optimize --game "TitanFall-2"
+
+# View real-time latency for European server regions
+python cli_helper.py --ping --region eu-west
 ```
 
-To sync your current local assets to a remote staging server:
+To see all available commands and flags, run:
 
 ```bash
-cli-helper-45 sync --target staging --path ./assets/textures/
-```
-
-To send a global message to your players via the integrated RCON console:
-
-```bash
-cli-helper-45 rcon --host 127.0.0.1 --cmd "say 'Server maintenance in 5 minutes!'"
+python cli_helper.py --help
 ```
 
 ### License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
