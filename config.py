@@ -1,38 +1,43 @@
+import json
 import os
-from typing import Dict, Any
-from pathlib import Path
+from typing import Any, Dict
 
 class GameConfig:
-    """Dynamic configuration loader with stateful persistence for cli-helper-45"""
-    def __init__(self, cfg_path: str = "~/.gaming/settings.json"):
-        self.path = Path(cfg_path).expanduser()
-        self.defaults = {"resolution": "1920x1080", "vsync": True, "fov": 90}
-        self.settings = self._initialize_store()
+    DEFAULT_SETTINGS = {
+        "resolution": "1920x1080",
+        "fullscreen": True,
+        "volume": 75,
+        "difficulty": "normal"
+    }
 
-    def _initialize_store(self) -> Dict[str, Any]:
-        if not self.path.exists():
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            return self.defaults
+    def __init__(self, path: str = "settings.json"):
+        self.path = path
+        self.data = self._load()
+
+    def _load(self) -> Dict[str, Any]:
+        if not os.path.exists(self.path):
+            self._save(self.DEFAULT_SETTINGS)
+            return self.DEFAULT_SETTINGS
         try:
-            import json
-            with open(self.path, 'r') as f:
-                return {**self.defaults, **json.load(f)}
+            with open(self.path, "r") as f:
+                loaded = json.load(f)
+                return {**self.DEFAULT_SETTINGS, **loaded}
         except (json.JSONDecodeError, IOError):
-            return self.defaults
+            return self.DEFAULT_SETTINGS
 
-    def __getitem__(self, key: str) -> Any:
-        return self.settings.get(key)
+    def _save(self, data: Dict[str, Any]) -> None:
+        with open(self.path, "w") as f:
+            json.dump(data, f, indent=4)
 
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.settings[key] = value
-        self._persist()
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.data.get(key, default)
 
-    def _persist(self) -> None:
-        import json
-        with open(self.path, 'w') as f:
-            json.dump(self.settings, f, indent=4)
+    def set(self, key: str, value: Any) -> None:
+        self.data[key] = value
+        self._save(self.data)
 
-    def toggle_feature(self, key: str) -> None:
-        if key in self.settings:
-            self.settings[key] = not bool(self.settings[key])
-            self._persist()
+    def __getitem__(self, item: str) -> Any:
+        return self.data[item]
+
+    def __getattr__(self, item: str) -> Any:
+        return self.data.get(item)
