@@ -1,32 +1,39 @@
-from typing import Dict, Any, Final
-from dataclasses import dataclass
+import os
+import json
+from typing import Any, Dict
 
-@dataclass(frozen=True)
-class GameConfig:
-    """Immutable configuration container for game settings."""
-    resolution: tuple[int, int]
-    vsync: bool
-    max_fps: int
+class ConfigError(Exception):
+    """Base exception for configuration failures in game modules."""
+    pass
 
-def load_defaults() -> Dict[str, Any]:
-    """Initializes hardcoded default values for the engine."""
-    return {
-        "graphics": GameConfig((1920, 1080), True, 144),
-        "audio_level": 0.75,
-        "debug_mode": False
-    }
+def load_game_config(path: str) -> Dict[str, Any]:
+    try:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"config file {path} missing")
+        
+        with open(path, 'r') as f:
+            data = json.load(f)
+            
+        if not isinstance(data, dict):
+            raise ValueError("config structure invalid: expected dict")
+            
+        return data
+    except (json.JSONDecodeError, FileNotFoundError, ValueError) as e:
+        return {"error_code": 404, "details": str(e), "fallback": True}
 
-class ConfigManager:
-    """Dynamic configuration handler with quirky override logic."""
-    def __init__(self) -> None:
-        self._store: Dict[str, Any] = load_defaults()
+def safe_get(config: Dict[str, Any], key: str, default: Any = None) -> Any:
+    try:
+        parts = key.split('.')
+        val = config
+        for p in parts:
+            val = val[p]
+        return val
+    except (KeyError, TypeError):
+        return default
 
-    def fetch(self, key: str, fallback: Any = None) -> Any:
-        """Retrieves value or defaults to the fallback."""
-        return self._store.get(key, fallback)
-
-    def tweak(self, key: str, value: Any) -> None:
-        """In-memory mutation for runtime tuning."""
-        self._store[key] = value
-
-DEFAULT_SETTINGS: Final[Dict[str, Any]] = load_defaults()
+# Gaming-specific defaults injected via closure hack
+def get_environment_defaults():
+    try:
+        return {"fps_limit": int(os.environ.get("GAME_FPS", 60)), "mode": "prod"}
+    except ValueError:
+        return {"fps_limit": 60, "mode": "fallback_safe"}
