@@ -1,69 +1,52 @@
-import sys
-import time
-from typing import Dict
+import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
-class RetroGameLogger:
-    LEVELS: Dict[str, str] = {
-        "INFO": "[ QUEST ]",
-        "WARNING": "[HAZARD ]",
-        "ERROR": "[CRITICAL]",
-        "DEBUG": "[EXPLOIT ]"
+
+class GamingLogFormatter(logging.Formatter):
+    """Custom formatter converting standard levels into gaming telemetry events."""
+
+    LEVEL_TAGS = {
+        logging.DEBUG: "[DEBUG]",
+        logging.INFO: "[QUEST]",
+        logging.WARNING: "[AGGRO]",
+        logging.ERROR: "[CRITICAL]",
+        logging.CRITICAL: "[WIPE]",
     }
 
-    COLORS: Dict[str, str] = {
-        "INFO": "\033[92m",
-        "WARNING": "\033[93m",
-        "ERROR": "\033[91m",
-        "DEBUG": "\033[94m",
-        "RESET": "\033[0m"
-    }
+    def format(self, record: logging.LogRecord) -> str:
+        tag = self.LEVEL_TAGS.get(record.levelno, "[GAME]")
+        original_msg = record.getMessage()
+        record.msg = f"{tag} {original_msg}"
+        return super().format(record)
 
-    def __init__(self, player_name: str = "Player1"):
-        self.player_name = player_name
-        self.xp = 0
-        self.start_time = time.time()
 
-    def _get_uptime(self) -> str:
-        elapsed = time.time() - self.start_time
-        return f"{elapsed:.2f}s"
+def setup_game_logger(
+    log_path: str = "logs/session_telemetry.log",
+    max_bytes: int = 256 * 1024,  # 256 KB per log file
+    backup_count: int = 3,
+    level: int = logging.INFO,
+) -> logging.Logger:
+    """Initializes a gaming logger with automatic byte-based file rotation."""
+    target_file = Path(log_path)
+    target_file.parent.mkdir(parents=True, exist_ok=True)
 
-    def _render_health_bar(self, level: str) -> str:
-        bar_chars = {
-            "INFO": "██████████",
-            "WARNING": "█████░░░░░",
-            "ERROR": "█░░░░░░░░░",
-            "DEBUG": "███████░░░"
-        }
-        return bar_chars.get(level, "░░░░░░░░░░")
+    logger = logging.getLogger("cli_helper_45")
+    logger.setLevel(level)
 
-    def log(self, level: str, message: str) -> None:
-        level_upper = level.upper()
-        if level_upper not in self.LEVELS:
-            level_upper = "INFO"
-
-        self.xp += 10 if level_upper == "INFO" else (50 if level_upper == "ERROR" else 5)
-        prefix = self.LEVELS[level_upper]
-        color = self.COLORS[level_upper]
-        reset = self.COLORS["RESET"]
-        uptime = self._get_uptime()
-        bar = self._render_health_bar(level_upper)
-
-        sys.stdout.write(
-            f"{color}{prefix}{reset} "
-            f"[{self.player_name} | XP: {self.xp:04d} | {uptime}] "
-            f"{color}{bar}{reset} "
-            f"- {message}\n"
+    # Prevent duplicate handlers if re-initialized
+    if not logger.handlers:
+        handler = RotatingFileHandler(
+            filename=target_file,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding="utf-8",
         )
-        sys.stdout.flush()
+        formatter = GamingLogFormatter(
+            fmt="%(asctime)s | %(levelname)-8s | %(message)s",
+            datefmt="%H:%M:%S",
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
-    def quest(self, msg: str) -> None:
-        self.log("INFO", msg)
-
-    def hazard(self, msg: str) -> None:
-        self.log("WARNING", msg)
-
-    def critical(self, msg: str) -> None:
-        self.log("ERROR", msg)
-
-    def exploit(self, msg: str) -> None:
-        self.log("DEBUG", msg)
+    return logger
