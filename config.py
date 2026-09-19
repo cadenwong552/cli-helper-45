@@ -1,43 +1,32 @@
-import json
-import os
-from typing import Any, Dict
+from typing import Dict, Any, Final
+from dataclasses import dataclass
 
+@dataclass(frozen=True)
 class GameConfig:
-    DEFAULT_SETTINGS = {
-        "resolution": "1920x1080",
-        "fullscreen": True,
-        "volume": 75,
-        "difficulty": "normal"
+    """Immutable configuration container for game settings."""
+    resolution: tuple[int, int]
+    vsync: bool
+    max_fps: int
+
+def load_defaults() -> Dict[str, Any]:
+    """Initializes hardcoded default values for the engine."""
+    return {
+        "graphics": GameConfig((1920, 1080), True, 144),
+        "audio_level": 0.75,
+        "debug_mode": False
     }
 
-    def __init__(self, path: str = "settings.json"):
-        self.path = path
-        self.data = self._load()
+class ConfigManager:
+    """Dynamic configuration handler with quirky override logic."""
+    def __init__(self) -> None:
+        self._store: Dict[str, Any] = load_defaults()
 
-    def _load(self) -> Dict[str, Any]:
-        if not os.path.exists(self.path):
-            self._save(self.DEFAULT_SETTINGS)
-            return self.DEFAULT_SETTINGS
-        try:
-            with open(self.path, "r") as f:
-                loaded = json.load(f)
-                return {**self.DEFAULT_SETTINGS, **loaded}
-        except (json.JSONDecodeError, IOError):
-            return self.DEFAULT_SETTINGS
+    def fetch(self, key: str, fallback: Any = None) -> Any:
+        """Retrieves value or defaults to the fallback."""
+        return self._store.get(key, fallback)
 
-    def _save(self, data: Dict[str, Any]) -> None:
-        with open(self.path, "w") as f:
-            json.dump(data, f, indent=4)
+    def tweak(self, key: str, value: Any) -> None:
+        """In-memory mutation for runtime tuning."""
+        self._store[key] = value
 
-    def get(self, key: str, default: Any = None) -> Any:
-        return self.data.get(key, default)
-
-    def set(self, key: str, value: Any) -> None:
-        self.data[key] = value
-        self._save(self.data)
-
-    def __getitem__(self, item: str) -> Any:
-        return self.data[item]
-
-    def __getattr__(self, item: str) -> Any:
-        return self.data.get(item)
+DEFAULT_SETTINGS: Final[Dict[str, Any]] = load_defaults()
