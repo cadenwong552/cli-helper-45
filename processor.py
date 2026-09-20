@@ -1,39 +1,56 @@
-import functools
-import time
+import re
+from typing import Callable, Any, Generator
 
-class GameStateProcessor:
-    def __init__(self, cache_size=128):
-        self._memo = {}
-        self._cache_size = cache_size
+class CommandValidationError(Exception):
+    """Raised when a gaming CLI command fails dynamic validation."""
+    pass
 
-    def optimized_compute(self, frame_data: tuple):
-        if frame_data in self._memo:
-            return self._memo[frame_data]
-        
-        result = self._process_frame(frame_data)
-        
-        if len(self._memo) >= self._cache_size:
-            self._memo.pop(next(iter(self._memo)))
-        
-        self._memo[frame_data] = result
-        return result
+class GamingInputProcessor:
+    def __init__(self) -> None:
+        self._validators: list[tuple[re.Pattern, Callable[[tuple[str, ...]], dict[str, Any]]]] = [
+            (
+                re.compile(r"^move\s+(north|south|east|west)\s+(\d+)$", re.IGNORECASE),
+                lambda m: {"action": "move", "direction": m[0].lower(), "steps": int(m[1])}
+            ),
+            (
+                re.compile(r"^use\s+item:([a-z0-9_]+)(?:\s+on\s+([a-z0-9_]+))?$", re.IGNORECASE),
+                lambda m: {"action": "use", "item": m[0], "target": m[1] or "self"}
+            ),
+            (
+                re.compile(r"^cast\s+([a-z]+)\s+lvl:([1-9]|10)$", re.IGNORECASE),
+                lambda m: {"action": "cast", "spell": m[0].lower(), "level": int(m[1])}
+            )
+        ]
 
-    def _process_frame(self, data: tuple) -> float:
-        time.sleep(0.001)
-        return sum(x * 1.05 for x in data)
+    def validate_raw_input(self, raw_input: str) -> dict[str, Any]:
+        clean_str = raw_input.strip()
+        if not clean_str:
+            raise CommandValidationError("Empty CLI command entered.")
 
-    def batch_process(self, frames: list) -> list:
-        return [self.optimized_compute(f) for f in frames]
+        for pattern, parser in self._validators:
+            match = pattern.match(clean_str)
+            if match:
+                return parser(match.groups())
 
-def fast_memoize(func):
-    cache = {}
-    @functools.wraps(func)
-    def wrapper(*args):
-        if args not in cache:
-            cache[args] = func(*args)
-        return cache[args]
-    return wrapper
+        raise CommandValidationError(f"Unrecognized game command syntax: '{clean_str}'")
 
-@fast_memoize
-def calculate_collision_vector(pos: tuple, velocity: tuple):
-    return tuple(p + v * 0.9 for p, v in zip(pos, velocity))
+    def main_loop(self, input_stream: Generator[str, None, None]) -> Generator[dict[str, Any], None, None]:
+        """Stream processor for gaming CLI inputs with embedded validation pipeline."""
+        for raw_cmd in input_stream:
+            try:
+                validated_payload = self.validate_raw_input(raw_cmd)
+                yield {"status": "ok", "data": validated_payload}
+            except CommandValidationError as err:
+                yield {"status": "error", "message": str(err), "raw": raw_cmd}
+
+if __name__ == "__main__":
+    commands = (
+        "move NORTH 12",
+        "cast fireball lvl:5",
+        "use item:health_potion on rogue",
+        "fly to sky",
+        ""
+    )
+    processor = GamingInputProcessor()
+    for result in processor.main_loop((cmd for cmd in commands)):
+        print(result)
