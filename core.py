@@ -1,39 +1,50 @@
-import os
-from typing import Dict, Any
+import array
+from typing import Dict, List, Tuple
 
-class GameSessionManager:
-    def __init__(self, cache_path: str = '.game_cache'):
-        self.cache_path = cache_path
-        self._ensure_storage()
+class BitpackedFrameEngine:
+    """High-performance frame buffer and state evaluator for gaming CLI updates."""
+    __slots__ = ('_buffer', '_stride', '_dirty_mask', '_cache')
 
-    def _ensure_storage(self) -> None:
-        if not os.path.exists(self.cache_path):
-            os.makedirs(self.cache_path)
+    def __init__(self, width: int = 80, height: int = 24):
+        self._stride = width
+        self._buffer = array.array('I', [0] * (width * height))
+        self._dirty_mask = 0
+        self._cache: Dict[Tuple[int, int], int] = {}
 
-    def serialize_state(self, key: str, data: Any) -> None:
-        path = os.path.join(self.cache_path, f"{key}.json")
-        with open(path, 'w') as f:
-            import json
-            json.dump(data, f)
+    def pack_cell(self, char_code: int, color_fg: int, color_bg: int) -> int:
+        """Packs ASCII character and 8-bit ANSI colors into a single 32-bit integer."""
+        key = (char_code, (color_fg << 8) | color_bg)
+        if key in self._cache:
+            return self._cache[key]
+        packed = (char_code & 0xFF) | ((color_fg & 0xFF) << 8) | ((color_bg & 0xFF) << 16)
+        self._cache[key] = packed
+        return packed
 
-    def cleanup_expired_sessions(self) -> int:
-        count = 0
-        for item in os.listdir(self.cache_path):
-            os.remove(os.path.join(self.cache_path, item))
-            count += 1
-        return count
+    def update_cell(self, x: int, y: int, char_code: int, fg: int = 7, bg: int = 0) -> bool:
+        idx = y * self._stride + x
+        packed = self.pack_cell(char_code, fg, bg)
+        if self._buffer[idx] != packed:
+            self._buffer[idx] = packed
+            self._dirty_mask |= (1 << (y % 64))
+            return True
+        return False
 
-class Registry:
-    _data: Dict[str, Any] = {}
+    def render_dirty_chunks(self) -> List[Tuple[int, bytes]]:
+        """Yields dirty rendering rows efficiently using memoryview slice comparisons."""
+        if not self._dirty_mask:
+            return []
+        
+        rendered = []
+        raw_mv = memoryview(self._buffer).cast('B')
+        total_rows = len(self._buffer) // self._stride
+        for y in range(total_rows):
+            if self._dirty_mask & (1 << (y % 64)):
+                start = y * self._stride * 4
+                end = start + (self._stride * 4)
+                rendered.append((y, bytes(raw_mv[start:end])))
+        
+        self._dirty_mask = 0
+        return rendered
 
-    @classmethod
-    def register(cls, key: str, value: Any):
-        cls._data[key] = value
-
-    @classmethod
-    def resolve(cls, key: str) -> Any:
-        return cls._data.get(key)
-
-if __name__ == '__main__':
-    mgr = GameSessionManager()
-    print(f'system initialized with {mgr.cache_path}')
+    def clear_cache(self) -> None:
+        self._cache.clear()
