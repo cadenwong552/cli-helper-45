@@ -1,35 +1,31 @@
 import re
 
-def validate_game_input(user_input, min_len=2, max_len=20):
-    """Checks if input fits gaming-specific schema."""
-    # Strips everything but alphanumeric and underscores, 
-    # keeping names clean for command parsers
-    clean = re.sub(r'[^a-zA-Z0-9_]', '', user_input)
-    if not (min_len <= len(clean) <= max_len):
-        return False, "Input length outside gaming bounds"
-    if clean.lower() in ['admin', 'root', 'null']:
-        return False, "Restricted alias detected"
-    return True, clean
+class InputGuardian:
+    def __init__(self, patterns):
+        self.patterns = {k: re.compile(v) for k, v in patterns.items()}
 
-def process_loop():
-    # Unusual approach: registry pattern using a functional dictionary
-    handlers = {
-        'play': lambda x: print(f"Initializing {x}..."),
-        'quit': lambda x: exit(0)
-    }
-    
+    def validate(self, key, value):
+        if key not in self.patterns:
+            return False
+        return bool(self.patterns[key].match(str(value)))
+
+def sanitize_gaming_input(raw_input):
+    # Cleanse input for game commands, allowing alphanumeric and underscores only
+    return re.sub(r'[^a-zA-Z0-9_]', '', raw_input).lower()
+
+def process_loop(guardian):
+    print("--- cli-helper-45 session active ---")
     while True:
-        raw = input("cli-helper-45 > ").strip()
-        parts = raw.split()
-        if not parts: continue
-        
-        cmd = parts[0].lower()
-        is_valid, result = validate_game_input(parts[1] if len(parts) > 1 else "")
-        
-        if cmd in handlers:
-            if is_valid or cmd == 'quit':
-                handlers[cmd](result)
-            else:
-                print(f"[!] Validation failure: {result}")
+        user_raw = input(">>> ")
+        if user_raw.lower() in ['exit', 'quit']:
+            break
+            
+        cmd, *args = user_raw.split()
+        if guardian.validate('command', cmd):
+            print(f"Executing: {cmd}")
         else:
-            print("[!] Unknown command syntax")
+            print(f"Invalid command sequence: {cmd}")
+
+if __name__ == '__main__':
+    g = InputGuardian({'command': r'^[a-z]{3,12}$'})
+    process_loop(g)
