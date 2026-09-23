@@ -1,45 +1,41 @@
 import sys
-import logging
+from typing import Dict, Any, Callable
 
-class GameStateError(Exception):
-    """Custom exception for catastrophic gaming engine crashes."""
-    pass
-
-def safety_wrapper(func):
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except (KeyboardInterrupt, SystemExit) as e:
-            logging.critical("Player ragequit detected: %s", e)
-            sys.exit(1)
-        except Exception as e:
-            logging.error("Engine instability caught: %s", type(e).__name__)
-            return None
-    return wrapper
-
-class ExecutionManager:
+class GameActionHandler:
     def __init__(self):
-        self.telemetry = []
+        self._registry: Dict[str, Callable] = {}
+        self._stats = {'processed': 0, 'failed': 0}
 
-    @safety_wrapper
-    def execute_command(self, cmd_input):
-        if not isinstance(cmd_input, str):
-            raise GameStateError("Invalid input type: bytes/ints are not allowed")
-        
-        # Process gaming command
-        tokens = cmd_input.split()
-        if not tokens:
-            return "Empty buffer"
-        
-        self.telemetry.append(tokens[0])
-        return f"Command {tokens[0]} successfully executed"
+    def register(self, command: str):
+        def decorator(func: Callable):
+            self._registry[command] = func
+            return func
+        return decorator
 
-    def handle_missing_assets(self, asset_path):
+    def execute(self, command: str, *args, **kwargs) -> Any:
+        func = self._registry.get(command)
+        if not func:
+            self._stats['failed'] += 1
+            raise ValueError(f"unknown command: {command}")
         try:
-            with open(asset_path, 'r') as f:
-                return f.read()
-        except FileNotFoundError:
-            logging.warning("Asset load failed: %s", asset_path)
-            return "{ 'status': 'placeholder_texture' }"
-        except PermissionError:
-            return "{ 'status': 'access_denied' }"
+            self._stats['processed'] += 1
+            return func(*args, **kwargs)
+        except Exception as e:
+            self._stats['failed'] += 1
+            print(f"runtime crunch: {e}", file=sys.stderr)
+            return None
+
+    @property
+    def status(self) -> Dict[str, int]:
+        return self._stats
+
+# global registry instance for gaming plugin hooks
+stream_handler = GameActionHandler()
+
+@stream_handler.register('ping')
+def ping_pong():
+    return 'pong'
+
+@stream_handler.register('score')
+def update_score(val: int):
+    return f"points added: {val}"
