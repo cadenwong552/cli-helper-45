@@ -1,56 +1,59 @@
-import re
-from typing import Callable, Any, Generator
+from typing import Dict, List, Any
 
-class CommandValidationError(Exception):
-    """Raised when a gaming CLI command fails dynamic validation."""
-    pass
+class MatchStatsProcessor:
+    """Processes gaming match telemetry using bit-packed bitwise flags."""
+    
+    ACHIEVEMENT_FLAGS = {
+        "mvp": 1 << 0,
+        "flawless": 1 << 1,
+        "clutch": 1 << 2,
+        "first_blood": 1 << 3,
+    }
 
-class GamingInputProcessor:
-    def __init__(self) -> None:
-        self._validators: list[tuple[re.Pattern, Callable[[tuple[str, ...]], dict[str, Any]]]] = [
-            (
-                re.compile(r"^move\s+(north|south|east|west)\s+(\d+)$", re.IGNORECASE),
-                lambda m: {"action": "move", "direction": m[0].lower(), "steps": int(m[1])}
-            ),
-            (
-                re.compile(r"^use\s+item:([a-z0-9_]+)(?:\s+on\s+([a-z0-9_]+))?$", re.IGNORECASE),
-                lambda m: {"action": "use", "item": m[0], "target": m[1] or "self"}
-            ),
-            (
-                re.compile(r"^cast\s+([a-z]+)\s+lvl:([1-9]|10)$", re.IGNORECASE),
-                lambda m: {"action": "cast", "spell": m[0].lower(), "level": int(m[1])}
-            )
+    @staticmethod
+    def pack_match_data(kills: int, deaths: int, score: int, achievements: List[str]) -> str:
+        flags = sum(MatchStatsProcessor.ACHIEVEMENT_FLAGS.get(a.lower(), 0) for a in achievements)
+        packed = ((score & 0xFFFFFF) << 40) | ((kills & 0xFFFF) << 24) | ((deaths & 0xFFFF) << 8) | (flags & 0xFF)
+        return f"GME-{packed:016X}"
+
+    @staticmethod
+    def unpack_match_data(token: str) -> Dict[str, Any]:
+        if not token.startswith("GME-") or len(token) != 20:
+            raise ValueError("Invalid telemetry token format")
+        
+        raw_val = int(token[4:], 16)
+        score = (raw_val >> 40) & 0xFFFFFF
+        kills = (raw_val >> 24) & 0xFFFF
+        deaths = (raw_val >> 8) & 0xFFFF
+        flags = raw_val & 0xFF
+
+        unlocked = [
+            name for name, bit in MatchStatsProcessor.ACHIEVEMENT_FLAGS.items()
+            if flags & bit
         ]
+        
+        kd_ratio = round(kills / max(1, deaths), 2)
+        
+        return {
+            "score": score,
+            "kills": kills,
+            "deaths": deaths,
+            "kd_ratio": kd_ratio,
+            "achievements": unlocked,
+        }
 
-    def validate_raw_input(self, raw_input: str) -> dict[str, Any]:
-        clean_str = raw_input.strip()
-        if not clean_str:
-            raise CommandValidationError("Empty CLI command entered.")
-
-        for pattern, parser in self._validators:
-            match = pattern.match(clean_str)
-            if match:
-                return parser(match.groups())
-
-        raise CommandValidationError(f"Unrecognized game command syntax: '{clean_str}'")
-
-    def main_loop(self, input_stream: Generator[str, None, None]) -> Generator[dict[str, Any], None, None]:
-        """Stream processor for gaming CLI inputs with embedded validation pipeline."""
-        for raw_cmd in input_stream:
-            try:
-                validated_payload = self.validate_raw_input(raw_cmd)
-                yield {"status": "ok", "data": validated_payload}
-            except CommandValidationError as err:
-                yield {"status": "error", "message": str(err), "raw": raw_cmd}
-
-if __name__ == "__main__":
-    commands = (
-        "move NORTH 12",
-        "cast fireball lvl:5",
-        "use item:health_potion on rogue",
-        "fly to sky",
-        ""
-    )
-    processor = GamingInputProcessor()
-    for result in processor.main_loop((cmd for cmd in commands)):
-        print(result)
+    @classmethod
+    def aggregate_session_summary(cls, tokens: List[str]) -> Dict[str, Any]:
+        unpacked_matches = [cls.unpack_match_data(t) for t in tokens]
+        total_kills = sum(m["kills"] for m in unpacked_matches)
+        total_deaths = sum(m["deaths"] for m in unpacked_matches)
+        total_score = sum(m["score"] for m in unpacked_matches)
+        
+        all_achievements = sorted(list({ach for m in unpacked_matches for ach in m["achievements"]}))
+        
+        return {
+            "matches_played": len(tokens),
+            "total_score": total_score,
+            "overall_kd": round(total_kills / max(1, total_deaths), 2),
+            "unique_achievements": all_achievements,
+        }
