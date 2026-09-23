@@ -1,37 +1,29 @@
-import os
-import json
-from functools import lru_cache
-from typing import Any, Dict
+import time
+import functools
+import random
+from typing import Callable, Any
 
-class DataVault:
-    def __init__(self, path: str = 'cache.json'):
-        self.path = path
-        self._data = self._load()
+def gaming_retry(max_attempts: int = 3, base_delay: float = 1.0):
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            last_ex = None
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_ex = e
+                    if attempt < max_attempts - 1:
+                        jitter = random.uniform(0, 0.5)
+                        wait = (base_delay * (2 ** attempt)) + jitter
+                        time.sleep(wait)
+            raise last_ex
+        return wrapper
+    return decorator
 
-    def _load(self) -> Dict[str, Any]:
-        if os.path.exists(self.path):
-            with open(self.path, 'r') as f:
-                return json.load(f)
-        return {}
-
-    def sync(self) -> None:
-        with open(self.path, 'w') as f:
-            json.dump(self._data, f, indent=4)
-
-    @lru_cache(maxsize=128)
-    def get_stat(self, key: str) -> Any:
-        return self._data.get(key)
-
-    def set_stat(self, key: str, value: Any) -> None:
-        self._data[key] = value
-        self.get_stat.cache_clear()
-        self.sync()
-
-def format_game_title(name: str) -> str:
-    return f"[GAME-45]: {name.upper()}"
-
-def sanitize_input(raw: str) -> str:
-    return ''.join(c for c in raw if c.isalnum() or c in ' _-').strip()
-
-# Globals for high-frequency access
-VAULT = DataVault()
+@gaming_retry(max_attempts=4)
+def fetch_leaderboard_data(endpoint: str):
+    # Simulated unstable game server connection
+    if random.random() < 0.7:
+        raise ConnectionError("Server lag spike detected")
+    return {"status": "success", "top_player": "pro_gamer_99"}
