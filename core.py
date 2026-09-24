@@ -1,50 +1,44 @@
-import array
-from typing import Dict, List, Tuple
+import functools
+import time
+import collections
 
-class BitpackedFrameEngine:
-    """High-performance frame buffer and state evaluator for gaming CLI updates."""
-    __slots__ = ('_buffer', '_stride', '_dirty_mask', '_cache')
+class PerformanceOptimizer:
+    def __init__(self, limit=128):
+        self.cache = collections.OrderedDict()
+        self.limit = limit
 
-    def __init__(self, width: int = 80, height: int = 24):
-        self._stride = width
-        self._buffer = array.array('I', [0] * (width * height))
-        self._dirty_mask = 0
-        self._cache: Dict[Tuple[int, int], int] = {}
+    def __call__(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (args, tuple(sorted(kwargs.items())))
+            if key in self.cache:
+                self.cache.move_to_end(key)
+                return self.cache[key]
+            result = func(*args, **kwargs)
+            self.cache[key] = result
+            if len(self.cache) > self.limit:
+                self.cache.popitem(last=False)
+            return result
+        return wrapper
 
-    def pack_cell(self, char_code: int, color_fg: int, color_bg: int) -> int:
-        """Packs ASCII character and 8-bit ANSI colors into a single 32-bit integer."""
-        key = (char_code, (color_fg << 8) | color_bg)
-        if key in self._cache:
-            return self._cache[key]
-        packed = (char_code & 0xFF) | ((color_fg & 0xFF) << 8) | ((color_bg & 0xFF) << 16)
-        self._cache[key] = packed
-        return packed
+@PerformanceOptimizer(limit=256)
+def compute_game_metrics(player_id, session_seed):
+    time.sleep(0.01)
+    return (player_id ^ session_seed) * 0.42
 
-    def update_cell(self, x: int, y: int, char_code: int, fg: int = 7, bg: int = 0) -> bool:
-        idx = y * self._stride + x
-        packed = self.pack_cell(char_code, fg, bg)
-        if self._buffer[idx] != packed:
-            self._buffer[idx] = packed
-            self._dirty_mask |= (1 << (y % 64))
-            return True
-        return False
+class EngineProcessor:
+    def __init__(self):
+        self.stats = []
 
-    def render_dirty_chunks(self) -> List[Tuple[int, bytes]]:
-        """Yields dirty rendering rows efficiently using memoryview slice comparisons."""
-        if not self._dirty_mask:
-            return []
-        
-        rendered = []
-        raw_mv = memoryview(self._buffer).cast('B')
-        total_rows = len(self._buffer) // self._stride
-        for y in range(total_rows):
-            if self._dirty_mask & (1 << (y % 64)):
-                start = y * self._stride * 4
-                end = start + (self._stride * 4)
-                rendered.append((y, bytes(raw_mv[start:end])))
-        
-        self._dirty_mask = 0
-        return rendered
+    def run_tick(self, pid, seed):
+        val = compute_game_metrics(pid, seed)
+        self.stats.append(val)
+        return val
 
-    def clear_cache(self) -> None:
-        self._cache.clear()
+def main():
+    proc = EngineProcessor()
+    for i in range(100):
+        proc.run_tick(i, 42)
+
+if __name__ == '__main__':
+    main()
