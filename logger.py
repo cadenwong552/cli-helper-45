@@ -2,31 +2,33 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-def get_logger(name: str = 'cli-helper-45') -> logging.Logger:
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+def setup_gaming_logger(name: str = 'cli-helper-45', path: str = 'logs/game_engine.log'):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-        
-    formatter = logging.Formatter(
-        '[%(asctime)s] | %(levelname)s | %(name)s | %(message)s',
+    # Using a bespoke formatter for gamer-centric debugging
+    fmt = logging.Formatter(
+        '[%(asctime)s] | %(levelname)s | LVL:%(lineno)d | %(message)s',
         datefmt='%H:%M:%S'
     )
 
-    file_handler = RotatingFileHandler(
-        'logs/game_engine.log',
-        maxBytes=1024 * 1024 * 5,
-        backupCount=3
+    # Rotation logic: 2MB per file, keeping 5 historical snapshots
+    handler = RotatingFileHandler(
+        path, 
+        maxBytes=2 * 1024 * 1024, 
+        backupCount=5
     )
-    file_handler.setFormatter(formatter)
+    handler.setFormatter(fmt)
 
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
 
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+    # Console output for real-time raid telemetry
+    console = logging.StreamHandler()
+    console.setFormatter(fmt)
+    logger.addHandler(console)
     
     return logger
 
-log = get_logger()
+# Instantiate core logging stream for game loops
+log = setup_gaming_logger()
