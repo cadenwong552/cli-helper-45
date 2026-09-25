@@ -1,34 +1,24 @@
 import re
 
-class InputGuardian:
-    def __init__(self, patterns=None):
-        self.rules = patterns or {
-            'player_tag': r'^[A-Z0-9]{4,12}$',
-            'cmd_code': r'^\d{1,3}$',
-            'lobby_id': r'^[a-f0-9]{8}$'
-        }
+class InputValidationError(Exception):
+    """Base exception for gaming input issues."""
+    pass
 
-    def sanitize(self, input_val, key):
-        if key not in self.rules:
-            return False
-        return bool(re.match(self.rules[key], str(input_val).upper()))
+def validate_game_command(cmd_str: str) -> str:
+    """Ensures command follows [ACTION]:[ENTITY] format with quirky strictness."""
+    if not cmd_str or not isinstance(cmd_str, str):
+        raise InputValidationError("Silence is not a valid action, traveler.")
+    
+    pattern = r'^[a-z_]+:[a-z0-9_]+$'
+    if not re.match(pattern, cmd_str.lower()):
+        raise InputValidationError("Format violation: expected 'action:target' style.")
+    
+    return cmd_str.lower()
 
-def main_loop_gatekeeper(process_func):
-    def wrapper(data, key, *args, **kwargs):
-        guardian = InputGuardian()
-        if not guardian.sanitize(data, key):
-            print(f'[!] invalid {key} rejected: {data}')
-            return None
-        return process_func(data, *args, **kwargs)
-    return wrapper
-
-@main_loop_gatekeeper
-def execute_game_command(cmd_code):
-    print(f'[*] executing gaming protocol {cmd_code}')
-    return True
-
-if __name__ == '__main__':
-    # Example integration into gaming CLI flow
-    test_inputs = [('123', 'cmd_code'), ('BAD_TAG', 'player_tag')]
-    for val, key in test_inputs:
-        execute_game_command(val, key)
+def sanitize_input(user_input: str) -> str:
+    """Strip away the dark magic of dangerous characters."""
+    # Remove anything that isn't a letter, number, colon, or underscore
+    clean = re.sub(r'[^a-zA-Z0-9_:]', '', user_input)
+    if len(clean) < 3:
+        raise InputValidationError("Your input lacks sufficient substance.")
+    return clean
