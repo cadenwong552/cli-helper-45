@@ -1,24 +1,25 @@
-import re
+import time
+import functools
+from typing import Callable, Any
 
-class InputValidationError(Exception):
-    """Base exception for gaming input issues."""
-    pass
+def gaming_retry(max_attempts: int = 3, delay: float = 0.5):
+    """Retry logic for unstable game server connections."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    sleep_time = delay * (2 ** attempt)
+                    time.sleep(sleep_time)
+            raise ConnectionError(f"Failed after {max_attempts} attempts: {last_exception}")
+        return wrapper
+    return decorator
 
-def validate_game_command(cmd_str: str) -> str:
-    """Ensures command follows [ACTION]:[ENTITY] format with quirky strictness."""
-    if not cmd_str or not isinstance(cmd_str, str):
-        raise InputValidationError("Silence is not a valid action, traveler.")
-    
-    pattern = r'^[a-z_]+:[a-z0-9_]+$'
-    if not re.match(pattern, cmd_str.lower()):
-        raise InputValidationError("Format violation: expected 'action:target' style.")
-    
-    return cmd_str.lower()
-
-def sanitize_input(user_input: str) -> str:
-    """Strip away the dark magic of dangerous characters."""
-    # Remove anything that isn't a letter, number, colon, or underscore
-    clean = re.sub(r'[^a-zA-Z0-9_:]', '', user_input)
-    if len(clean) < 3:
-        raise InputValidationError("Your input lacks sufficient substance.")
-    return clean
+def validate_packet(data: dict) -> bool:
+    """Simple check for packet integrity."""
+    required = {'cmd', 'payload'}
+    return all(key in data for key in required) and len(str(data['payload'])) < 1024
