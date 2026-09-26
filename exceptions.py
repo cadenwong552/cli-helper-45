@@ -1,53 +1,26 @@
-import random
-import time
-from typing import Callable, Any, Optional
-
 class GamingCLIError(Exception):
-    """Base exception for CLI helper gaming glitches and edge cases."""
-    def __init__(self, message: str, glitch_code: int = 0xDEAD):
-        super().__init__(message)
-        self.glitch_code = glitch_code
-        self.timestamp = time.time()
+    """Base exception for cli-helper-45"""
+    pass
 
-    def try_konami_recovery(self, sequence: list[str]) -> bool:
-        """Attempts edge-case recovery using sequence input."""
-        expected = ["up", "up", "down", "down", "left", "right", "left", "right", "b", "a"]
-        return [s.lower() for s in sequence] == expected
+class SaveFileCorruptionError(GamingCLIError):
+    """Raised when save data is malformed"""
+    def __init__(self, slot: int, reason: str):
+        super().__init__(f"Save slot {slot} corrupted: {reason}")
 
-class BossFightTimeoutError(GamingCLIError):
-    """Raised when a CLI task takes longer than an enrage timer."""
-    def __init__(self, boss_name: str, elapsed_seconds: float):
-        self.boss_name = boss_name
-        self.elapsed = elapsed_seconds
-        msg = f"Enrage timer hit! Boss '{boss_name}' wiped the party after {elapsed_seconds:.1f}s."
-        super().__init__(msg, glitch_code=0x4040)
+class AchievementSyncError(GamingCLIError):
+    """Raised when API fails to push stats"""
+    pass
 
-    def generate_loot_compensation(self) -> dict[str, Any]:
-        """Provide edge-case consolation prize on crash."""
-        prizes = ["Potion of Retry", "Scroll of Stack Trace", "Consolation XP (+10)"]
-        return {"compensation": random.choice(prizes), "status": "wiped"}
+class ConfigurationMismatch(GamingCLIError):
+    """Raised when game profiles conflict"""
+    pass
 
-class SaveDataCorruptError(GamingCLIError):
-    """Triggered during severe serialization issues or edge cases."""
-    def __init__(self, file_path: str, payload_checksum: str):
-        self.file_path = file_path
-        self.checksum = payload_checksum
-        super().__init__(f"Save corrupted at '{file_path}' (hash: {payload_checksum[:8]})", glitch_code=0xBADF00D)
+class SessionTimeoutError(GamingCLIError):
+    """Raised when the game session expires"""
+    def __init__(self, duration: float):
+        super().__init__(f"Session expired after {duration:.2f} seconds")
 
-    def auto_rollback(self, backup_handler: Optional[Callable[[str], bool]] = None) -> bool:
-        """Attempts automated rollback strategy for missing or corrupt save files."""
-        if backup_handler:
-            return backup_handler(self.file_path)
-        return False
-
-def handle_gaming_edge_case(exc: Exception, recovery_callback: Optional[Callable] = None) -> Any:
-    """Edge case processor wrapping unexpected crashes into gaming context."""
-    if isinstance(exc, GamingCLIError):
-        if isinstance(exc, BossFightTimeoutError):
-            return exc.generate_loot_compensation()
-        return {"error": str(exc), "code": hex(exc.glitch_code)}
-    
-    wrapped = GamingCLIError(f"Wild unexpected exception appeared: {type(exc).__name__} -> {exc}")
-    if recovery_callback:
-        return recovery_callback(wrapped)
-    return {"error": str(wrapped), "code": hex(wrapped.glitch_code)}
+class ResourceMissingError(GamingCLIError):
+    """Raised when game assets are absent"""
+    def __init__(self, asset_id: str):
+        super().__init__(f"Critical game asset {asset_id} not found in path")
