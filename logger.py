@@ -1,43 +1,33 @@
 import logging
 from logging.handlers import RotatingFileHandler
+import os
 
-class RetroGameFormatter(logging.Formatter):
-    LEVEL_EMOJIS = {
-        "DEBUG": "👾 [DEB]",
-        "INFO": "⚔️ [QST]",
-        "WARNING": "⚠️ [HAZ]",
-        "ERROR": "💥 [CRT]",
-        "CRITICAL": "💀 [RIP]",
-    }
-
-    def format(self, record):
-        emoji = self.LEVEL_EMOJIS.get(record.levelname, "📝")
-        record.game_level = f"{emoji} {record.levelname}"
-        log_fmt = "%(asctime)s | %(game_level)s | %(message)s"
-        formatter = logging.Formatter(log_fmt, datefmt="%H:%M:%S")
-        return formatter.format(record)
-
-def setup_gamer_logger(log_file="quest.log"):
-    logger = logging.getLogger("cli_helper_45")
+def get_gaming_logger(name='cli-helper-45', log_file='game_state.log'):
+    logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-
-    if logger.hasHandlers():
-        logger.handlers.clear()
-
-    # Rotating File Handler - 50KB size limit, keep 3 backup logs
-    file_handler = RotatingFileHandler(
-        log_file, maxBytes=50 * 1024, backupCount=3, encoding="utf-8"
+    
+    formatter = logging.Formatter(
+        '[%(asctime)s] | %(levelname)s | %(name)s | %(message)s',
+        datefmt='%H:%M:%S'
     )
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(RetroGameFormatter())
-
-    # Console handler for direct CLI visual feedback
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(RetroGameFormatter())
-
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-    logger.info("system initialised: player spawned in cli-helper-45")
+    
+    handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=1024 * 1024 * 5, 
+        backupCount=3
+    )
+    
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+    
     return logger
+
+if __name__ == '__main__':
+    # Test sequence for game state logging
+    game_logger = get_gaming_logger()
+    game_logger.info('engine initialization sequence started')
+    game_logger.debug('loading asset maps into memory buffer')
