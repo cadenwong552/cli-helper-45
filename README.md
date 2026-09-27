@@ -2,18 +2,18 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`cli-helper-45` is a lightweight Python command-line utility designed to streamline game server management and local session configuration. It eliminates repetitive setup tasks by providing rapid, automated triggers for environment variables and process handling.
+`cli-helper-45` is a high-performance Python CLI utility designed to automate server maintenance and player data management for dedicated gaming environments. It streamlines complex console commands into intuitive flags, reducing administrative overhead for multi-server operators.
 
 ### Features
 
-*   **Process Governor:** Automatically detects and optimizes CPU affinity for high-performance game executables to minimize frame stutter.
-*   **Config Injector:** Seamlessly syncs local game settings files with cloud backups or custom preset directories.
-*   **Quick-Launch Hooks:** Enables pre-launch cleanup of cache directories and temporary logs with a single command.
-*   **Latency Diagnostic:** Built-in network check to ping specific game server regions before launching your session.
+*   **Log Analytics:** Instantly parse server logs to identify latency spikes, suspicious player behavior, or script crashes.
+*   **Automated Backups:** Trigger scheduled snapshots of player data and world files with integrated compression.
+*   **Live Status Dashboard:** Monitor real-time player counts, CPU load, and memory usage directly in your terminal.
+*   **Batch Configuration:** Update server settings or whitelist files across multiple instances with a single execution command.
 
 ### Installation
 
-Requires Python 3.8+ and `pip`.
+Ensure you have Python 3.8+ installed. You can install the tool via pip:
 
 ```bash
 # Clone the repository
@@ -23,28 +23,33 @@ cd cli-helper-45
 # Install dependencies
 pip install -r requirements.txt
 
-# Make executable
-chmod +x cli_helper.py
+# Install globally
+pip install .
 ```
 
 ### Usage
 
-Use the helper to prepare your environment and launch your game automatically.
+Once installed, use the `ch45` command to manage your server instances.
 
+**Check current server status:**
 ```bash
-# Clean cache and apply performance profile for 'TitanFall-2'
-python cli_helper.py --optimize --game "TitanFall-2"
-
-# View real-time latency for European server regions
-python cli_helper.py --ping --region eu-west
+ch45 status --instance "US-East-01"
 ```
 
-To see all available commands and flags, run:
-
+**Generate a crash report:**
 ```bash
-python cli_helper.py --help
+ch45 logs --analyze --last 50
 ```
+
+**Backup world data:**
+```bash
+ch45 backup --target "/opt/game_servers/world_data" --compress
+```
+
+### Roadmap
+*   Support for Discord Webhook integration for real-time alerts.
+*   Plugin auto-updater for popular game frameworks.
+*   Interactive TUI mode for easier navigation.
 
 ### License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
