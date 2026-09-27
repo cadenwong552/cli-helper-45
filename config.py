@@ -1,39 +1,39 @@
-import os
 import json
+from pathlib import Path
 from typing import Any, Dict
 
-class ConfigError(Exception):
-    """Base exception for configuration failures in game modules."""
-    pass
+class GameConfig:
+    def __init__(self, config_path: str = "settings.json"):
+        self.path = Path(config_path)
+        self.defaults = {
+            "resolution": "1920x1080",
+            "vsync": True,
+            "fov": 90,
+            "keybinds": {"jump": "space", "crouch": "ctrl"}
+        }
+        self._data = self._load()
 
-def load_game_config(path: str) -> Dict[str, Any]:
-    try:
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"config file {path} missing")
-        
-        with open(path, 'r') as f:
-            data = json.load(f)
-            
-        if not isinstance(data, dict):
-            raise ValueError("config structure invalid: expected dict")
-            
-        return data
-    except (json.JSONDecodeError, FileNotFoundError, ValueError) as e:
-        return {"error_code": 404, "details": str(e), "fallback": True}
+    def _load(self) -> Dict[str, Any]:
+        if not self.path.exists():
+            self.path.write_text(json.dumps(self.defaults, indent=4))
+            return self.defaults
+        try:
+            with open(self.path, "r") as f:
+                user_data = json.load(f)
+                return {**self.defaults, **user_data}
+        except (json.JSONDecodeError, IOError):
+            return self.defaults
 
-def safe_get(config: Dict[str, Any], key: str, default: Any = None) -> Any:
-    try:
-        parts = key.split('.')
-        val = config
-        for p in parts:
-            val = val[p]
-        return val
-    except (KeyError, TypeError):
-        return default
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._data.get(key, default)
 
-# Gaming-specific defaults injected via closure hack
-def get_environment_defaults():
-    try:
-        return {"fps_limit": int(os.environ.get("GAME_FPS", 60)), "mode": "prod"}
-    except ValueError:
-        return {"fps_limit": 60, "mode": "fallback_safe"}
+    def __getitem__(self, key: str) -> Any:
+        return self._data[key]
+
+    def save(self) -> None:
+        with open(self.path, "w") as f:
+            json.dump(self._data, f, indent=4)
+
+    def update(self, new_data: Dict[str, Any]) -> None:
+        self._data.update(new_data)
+        self.save()
