@@ -1,33 +1,34 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from datetime import datetime
 
-def get_gaming_logger(name='cli-helper-45', log_file='game_state.log'):
+class GamerFormatter(logging.Formatter):
+    COLORS = {
+        'DEBUG': '\033[94m',
+        'INFO': '\033[92m',
+        'WARNING': '\033[93m',
+        'ERROR': '\033[91m',
+        'CRITICAL': '\033[41m'
+    }
+    RESET = '\033[0m'
+
+    def format(self, record):
+        log_fmt = f"{self.COLORS.get(record.levelname, '')}[{record.levelname}]{self.RESET} >> %(message)s"
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+def get_logger(name: str = "cli-helper-45") -> logging.Logger:
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    
-    formatter = logging.Formatter(
-        '[%(asctime)s] | %(levelname)s | %(name)s | %(message)s',
-        datefmt='%H:%M:%S'
-    )
-    
-    handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=1024 * 1024 * 5, 
-        backupCount=3
-    )
-    
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    logger.addHandler(console)
-    
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(GamerFormatter())
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
     return logger
 
-if __name__ == '__main__':
-    # Test sequence for game state logging
-    game_logger = get_gaming_logger()
-    game_logger.info('engine initialization sequence started')
-    game_logger.debug('loading asset maps into memory buffer')
+log = get_logger()
+
+def log_game_event(event_name: str, status: str = "SUCCESS"):
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    msg = f"[{timestamp}] GAME_EVENT: {event_name.upper()} | STATUS: {status}"
+    log.info(msg)
