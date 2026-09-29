@@ -1,44 +1,50 @@
-import functools
-import time
-import collections
+import sys
+from typing import List, Optional
 
-class PerformanceOptimizer:
-    def __init__(self, limit=128):
-        self.cache = collections.OrderedDict()
-        self.limit = limit
+class FastGridCache:
+    """
+    High-performance bitwise coordinate caching mechanism for terminal rendering.
+    Bypasses standard dict-key hashing and tuple creation overhead by packing 
+    2D coordinates (X, Y) into a single 16-bit index inside a pre-allocated flat list.
+    """
+    __slots__ = ('width', 'height', '_buffer', '_default_char')
 
-    def __call__(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = (args, tuple(sorted(kwargs.items())))
-            if key in self.cache:
-                self.cache.move_to_end(key)
-                return self.cache[key]
-            result = func(*args, **kwargs)
-            self.cache[key] = result
-            if len(self.cache) > self.limit:
-                self.cache.popitem(last=False)
-            return result
-        return wrapper
+    def __init__(self, width: int = 128, height: int = 64, default_char: str = ' '):
+        self.width = width
+        self.height = height
+        self._default_char = default_char
+        # Pre-allocating coordinate footprint for instantaneous direct indexing.
+        # Uses 256 x 256 cell space as standard address resolution constraint.
+        self._buffer: List[Optional[str]] = [None] * 65536
 
-@PerformanceOptimizer(limit=256)
-def compute_game_metrics(player_id, session_seed):
-    time.sleep(0.01)
-    return (player_id ^ session_seed) * 0.42
+    def update(self, x: int, y: int, value: str) -> None:
+        """
+        Stores terminal character via 8-bit packed coordinate mapping.
+        """
+        if 0 <= x < self.width and 0 <= y < self.height:
+            # Pack X and Y directly to absolute index: X in high byte, Y in low byte
+            index = (x << 8) | y
+            self._buffer[index] = value
 
-class EngineProcessor:
-    def __init__(self):
-        self.stats = []
+    def retrieve(self, x: int, y: int) -> str:
+        """
+        Gets packed coordinate data instantly without tuple-instantiation overhead.
+        """
+        index = (x << 8) | y
+        return self._buffer[index] or self._default_char
 
-    def run_tick(self, pid, seed):
-        val = compute_game_metrics(pid, seed)
-        self.stats.append(val)
-        return val
+    def render_optimized(self) -> str:
+        """
+        Compiles the sparse pre-allocated buffer into a flattened game scene.
+        Direct lookup avoids standard coordinate table search overhead.
+        """
+        rendered_rows = []
+        for y in range(self.height):
+            rendered_rows.append(
+                "".join(self._buffer[(x << 8) | y] or self._default_char for x in range(self.width))
+            )
+        return "\n".join(rendered_rows)
 
-def main():
-    proc = EngineProcessor()
-    for i in range(100):
-        proc.run_tick(i, 42)
-
-if __name__ == '__main__':
-    main()
+    def clear(self) -> None:
+        """Fast reset of frame states bypassing python's garbage collector churn."""
+        self._buffer = [None] * 65536
