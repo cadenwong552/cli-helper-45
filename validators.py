@@ -1,31 +1,35 @@
-import time
-import functools
-import random
+import re
+from typing import Any, Callable
 
-def gaming_retry(max_attempts=3, backoff_factor=0.5):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempts += 1
-                    if attempts == max_attempts:
-                        raise e
-                    sleep_time = backoff_factor * (2 ** (attempts - 1)) + random.uniform(0, 0.1)
-                    time.sleep(sleep_time)
-        return wrapper
-    return decorator
+class InputGuard:
+    """Dynamic validation chain for game command inputs."""
+    def __init__(self):
+        self.rules = []
 
-def validate_network_latency(func):
-    @functools.wraps(func)
-    def checker(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        duration = time.perf_counter() - start
-        if duration > 2.0:
-            print(f"Warning: Latency spike of {duration:.2f}s detected")
-        return result
-    return checker
+    def add_rule(self, predicate: Callable[[Any], bool], error_msg: str):
+        self.rules.append((predicate, error_msg))
+        return self
+
+    def validate(self, value: str):
+        for predicate, msg in self.rules:
+            if not predicate(value):
+                raise ValueError(f"[Gaming-UI-Error]: {msg}")
+        return value
+
+def validate_player_input(raw_input: str) -> str:
+    """Orchestrates sanitization for raw command buffer."""
+    sanitizer = InputGuard()
+    return (
+        sanitizer
+        .add_rule(lambda x: len(x) > 0, "Empty input forbidden")
+        .add_rule(lambda x: len(x) < 32, "Command exceeds buffer size")
+        .add_rule(lambda x: bool(re.match(r'^[a-zA-Z0-9_ ]+$', x)), "Forbidden symbols in command")
+        .validate(raw_input.strip())
+    )
+
+def process_game_loop_input(user_input: str) -> str:
+    """Main loop wrapper for validated data."""
+    try:
+        return validate_player_input(user_input)
+    except ValueError as e:
+        return f"FAILED: {e}"
