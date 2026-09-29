@@ -1,41 +1,44 @@
-import sys
-from typing import Dict, Any, Callable
+import functools
+import time
 
-class GameActionHandler:
+class CacheProxy:
+    def __init__(self, limit=128):
+        self.limit = limit
+        self.storage = {}
+        self.hits = 0
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (args, tuple(sorted(kwargs.items())))
+            if key in self.storage:
+                self.hits += 1
+                return self.storage[key]
+            result = func(*args, **kwargs)
+            if len(self.storage) >= self.limit:
+                self.storage.pop(next(iter(self.storage)))
+            self.storage[key] = result
+            return result
+        return wrapper
+
+@CacheProxy(limit=256)
+def calculate_frame_delta(a, b):
+    # Simulate expensive geometry calculations in gaming
+    return (a ** 2 + b ** 2) ** 0.5
+
+def batch_process(data_stream):
+    results = []
+    for item in data_stream:
+        # Unconventional batching to avoid GIL thrashing
+        if isinstance(item, tuple):
+            results.append(calculate_frame_delta(*item))
+        else:
+            results.append(item)
+    return results
+
+class PerformanceOptimizer:
     def __init__(self):
-        self._registry: Dict[str, Callable] = {}
-        self._stats = {'processed': 0, 'failed': 0}
+        self.start_time = time.perf_counter()
 
-    def register(self, command: str):
-        def decorator(func: Callable):
-            self._registry[command] = func
-            return func
-        return decorator
-
-    def execute(self, command: str, *args, **kwargs) -> Any:
-        func = self._registry.get(command)
-        if not func:
-            self._stats['failed'] += 1
-            raise ValueError(f"unknown command: {command}")
-        try:
-            self._stats['processed'] += 1
-            return func(*args, **kwargs)
-        except Exception as e:
-            self._stats['failed'] += 1
-            print(f"runtime crunch: {e}", file=sys.stderr)
-            return None
-
-    @property
-    def status(self) -> Dict[str, int]:
-        return self._stats
-
-# global registry instance for gaming plugin hooks
-stream_handler = GameActionHandler()
-
-@stream_handler.register('ping')
-def ping_pong():
-    return 'pong'
-
-@stream_handler.register('score')
-def update_score(val: int):
-    return f"points added: {val}"
+    def get_stats(self):
+        return {'uptime': time.perf_counter() - self.start_time}
