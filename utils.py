@@ -1,29 +1,28 @@
 import time
-import functools
 import random
-from typing import Callable, Any
+from functools import wraps
 
-def gaming_retry(max_attempts: int = 3, base_delay: float = 1.0):
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            last_ex = None
-            for attempt in range(max_attempts):
+def retry_network_op(max_attempts=3, base_delay=1.0):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:
-                    last_ex = e
-                    if attempt < max_attempts - 1:
-                        jitter = random.uniform(0, 0.5)
-                        wait = (base_delay * (2 ** attempt)) + jitter
-                        time.sleep(wait)
-            raise last_ex
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        raise e
+                    sleep_time = (base_delay * (2 ** (attempts - 1))) + (random.random() * 0.5)
+                    time.sleep(sleep_time)
+            return None
         return wrapper
     return decorator
 
-@gaming_retry(max_attempts=4)
-def fetch_leaderboard_data(endpoint: str):
-    # Simulated unstable game server connection
+@retry_network_op(max_attempts=4, base_delay=0.5)
+def fetch_game_data(endpoint):
+    # Simulated network jitter for gaming telemetry
     if random.random() < 0.7:
-        raise ConnectionError("Server lag spike detected")
-    return {"status": "success", "top_player": "pro_gamer_99"}
+        raise ConnectionError("Server lag spikes detected")
+    return {"status": "ready", "payload": "level_data_001"}
