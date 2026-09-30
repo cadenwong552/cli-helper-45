@@ -1,34 +1,28 @@
-import logging
-import sys
-from datetime import datetime
+import datetime
+import typing
 
-class GamerFormatter(logging.Formatter):
-    COLORS = {
-        'DEBUG': '\033[94m',
-        'INFO': '\033[92m',
-        'WARNING': '\033[93m',
-        'ERROR': '\033[91m',
-        'CRITICAL': '\033[41m'
-    }
-    RESET = '\033[0m'
+class GameLogger:
+    """Custom logger for gaming cli telemetry."""
+    
+    def __init__(self, prefix: str = "[GAMER-45]") -> None:
+        self.prefix: str = prefix
 
-    def format(self, record):
-        log_fmt = f"{self.COLORS.get(record.levelname, '')}[{record.levelname}]{self.RESET} >> %(message)s"
-        formatter = logging.Formatter(log_fmt)
-        return formatter.format(record)
+    def log(self, message: str, level: str = "INFO") -> None:
+        """Formats and prints event logs to stdout."""
+        timestamp: str = datetime.datetime.now().strftime("%H:%M:%S")
+        formatted: str = f"{self.prefix} {timestamp} | {level} | {message}"
+        print(formatted)
 
-def get_logger(name: str = "cli-helper-45") -> logging.Logger:
-    logger = logging.getLogger(name)
-    if not logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(GamerFormatter())
-        logger.addHandler(handler)
-        logger.setLevel(logging.DEBUG)
-    return logger
+    def debug_frame(self, frame_data: typing.Dict[str, float]) -> None:
+        """Visual representation of frame timings for debugging."""
+        bar: str = "|" * int(frame_data.get("ms", 0))
+        self.log(f"FPS_FRAME_TIME: {bar} {frame_data.get('ms')}ms", "DEBUG")
 
-log = get_logger()
+    def alert_critical(self, error: Exception) -> typing.NoReturn:
+        """Raises exception after logging internal error state."""
+        self.log(f"CRITICAL_FAIL: {str(error)}", "FATAL")
+        raise error
 
-def log_game_event(event_name: str, status: str = "SUCCESS"):
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    msg = f"[{timestamp}] GAME_EVENT: {event_name.upper()} | STATUS: {status}"
-    log.info(msg)
+def get_logger(name: str = "default") -> GameLogger:
+    """Factory function for consistent logger instantiation."""
+    return GameLogger(f"[{name.upper()}]")
