@@ -1,52 +1,34 @@
-import random
 import time
-from functools import wraps
-from typing import Callable, Any, Type, Tuple
+import functools
+import random
 
-
-def respawn_retry(
-    max_lives: int = 3,
-    initial_cooldown: float = 1.0,
-    backoff_factor: float = 2.0,
-    catch_exceptions: Tuple[Type[BaseException], ...] = (Exception,),
-):
-    """Retries network calls using a gaming respawn mechanism with backoff and ping jitter."""
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            lives_left = max_lives
-            current_cooldown = initial_cooldown
-
-            while lives_left > 0:
+def retry_gaming_op(retries=3, backoff=1.5, jitter=True):
+    """Retry logic with exponential backoff for network jitter."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            current_delay = backoff
+            while attempts < retries:
                 try:
                     return func(*args, **kwargs)
-                except catch_exceptions as error:
-                    lives_left -= 1
-                    if lives_left <= 0:
-                        raise ConnectionError(
-                            f"Game Over! '{func.__name__}' failed after {max_lives} attempts. "
-                            f"Final error: {error}"
-                        ) from error
-
-                    ping_variance = random.uniform(0.8, 1.2)
-                    sleep_time = current_cooldown * ping_variance
-
-                    print(
-                        f"[RESPAWN] Network hit in {func.__name__} ({error}). "
-                        f"Extra lives left: {lives_left}/{max_lives}. "
-                        f"Waiting {sleep_time:.2f}s..."
-                    )
-
+                except Exception as e:
+                    attempts += 1
+                    if attempts >= retries:
+                        raise e
+                    
+                    # Randomize delay to prevent thunderous herd problem
+                    sleep_time = current_delay * (random.uniform(0.5, 1.5) if jitter else 1)
                     time.sleep(sleep_time)
-                    current_cooldown *= backoff_factor
-
+                    current_delay *= 2
+            return None
         return wrapper
     return decorator
 
-
-@respawn_retry(max_lives=4, initial_cooldown=0.5, catch_exceptions=(ConnectionError, TimeoutError))
-def fetch_leaderboard_data(region: str = "us-east") -> dict:
-    """Fetch global player rankings with simulated packet drop logic."""
-    if random.random() < 0.5:
-        raise TimeoutError("Packet loss threshold exceeded while querying master node")
-    return {"region": region, "status": "synced", "top_player": "xX_DragonSlayer_Xx"}
+@retry_gaming_op(retries=5)
+def sync_player_stats(player_id, data):
+    """Simulated volatile network call for game servers."""
+    import random
+    if random.random() < 0.7:
+        raise ConnectionError("Game server handshake timeout")
+    return {"status": "synced", "id": player_id}
