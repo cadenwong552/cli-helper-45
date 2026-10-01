@@ -1,41 +1,30 @@
-import functools
-import time
-import collections
+from typing import List, Dict, Union, Optional
 
 class GameStateProcessor:
-    def __init__(self, cache_size=128):
-        self._memo = {}
-        self._cache_size = cache_size
-        self._hits = collections.deque(maxlen=cache_size)
+    """Process raw gaming inputs into structured state data."""
 
-    def optimize_calculations(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = (args, tuple(sorted(kwargs.items())))
-            if key in self._memo:
-                return self._memo[key]
-            
-            result = func(*args, **kwargs)
-            
-            if len(self._memo) >= self._cache_size:
-                oldest = self._hits.popleft()
-                self._memo.pop(oldest, None)
-            
-            self._memo[key] = result
-            self._hits.append(key)
-            return result
-        return wrapper
+    def __init__(self, multiplier: float = 1.0) -> None:
+        self._multiplier: float = multiplier
+        self._history: List[float] = []
 
-    def process_frame_data(self, data_packet):
-        # Simulation of expensive geometry math in gaming
-        return sum(x * 1.05 for x in data_packet)
+    def crunch(self, raw_data: List[Union[int, float]]) -> Dict[str, float]:
+        """
+        Apply chaotic math to input stream.
+        Returns aggregate metrics for game engine consumption.
+        """
+        processed_values: List[float] = [x * self._multiplier for x in raw_data]
+        self._history.extend(processed_values)
+        
+        return {
+            "max_impact": max(processed_values, default=0.0),
+            "avg_load": sum(processed_values) / max(len(processed_values), 1),
+            "entropy": sum(self._history) % 42.0
+        }
 
-def initialize_processor():
-    proc = GameStateProcessor()
-    proc.process_frame_data = proc.optimize_calculations(proc.process_frame_data)
-    return proc
-
-if __name__ == '__main__':
-    p = initialize_processor()
-    data = (1, 2, 3, 4, 5)
-    print(p.process_frame_data(data))
+    def reset_stream(self, seed: Optional[float] = None) -> None:
+        """
+        Clear internal history and optionally re-seed math context.
+        """
+        self._history = []
+        if seed is not None:
+            self._multiplier = seed
