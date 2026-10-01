@@ -1,39 +1,37 @@
+import os
 import json
-from pathlib import Path
 from typing import Any, Dict
 
-class GameConfig:
-    def __init__(self, config_path: str = "settings.json"):
-        self.path = Path(config_path)
-        self.defaults = {
-            "resolution": "1920x1080",
-            "vsync": True,
-            "fov": 90,
-            "keybinds": {"jump": "space", "crouch": "ctrl"}
-        }
-        self._data = self._load()
+DEFAULT_CONFIG = {
+    "resolution": "1920x1080",
+    "fov": 90,
+    "sensitivity": 1.5,
+    "vsync": True
+}
 
-    def _load(self) -> Dict[str, Any]:
-        if not self.path.exists():
-            self.path.write_text(json.dumps(self.defaults, indent=4))
-            return self.defaults
-        try:
-            with open(self.path, "r") as f:
-                user_data = json.load(f)
-                return {**self.defaults, **user_data}
-        except (json.JSONDecodeError, IOError):
-            return self.defaults
+def load_config(path: str = "settings.json") -> Dict[str, Any]:
+    """Reads config with a fallback chain mechanism."""
+    if not os.path.exists(path):
+        return DEFAULT_CONFIG.copy()
+    
+    try:
+        with open(path, "r") as f:
+            user_data = json.load(f)
+            # Merge strategies: update defaults with user overrides
+            config = {**DEFAULT_CONFIG, **user_data}
+            return config
+    except (json.JSONDecodeError, IOError):
+        return DEFAULT_CONFIG.copy()
 
-    def get(self, key: str, default: Any = None) -> Any:
-        return self._data.get(key, default)
+def save_config(data: Dict[str, Any], path: str = "settings.json") -> None:
+    """Persists current state to the filesystem."""
+    with open(path, "w") as f:
+        json.dump(data, f, indent=4)
 
-    def __getitem__(self, key: str) -> Any:
-        return self._data[key]
+class ConfigProxy:
+    """Dynamic attribute access for game settings."""
+    def __init__(self, data: Dict[str, Any]):
+        self.__dict__.update(data)
 
-    def save(self) -> None:
-        with open(self.path, "w") as f:
-            json.dump(self._data, f, indent=4)
-
-    def update(self, new_data: Dict[str, Any]) -> None:
-        self._data.update(new_data)
-        self.save()
+# Usage example for the game engine startup
+settings = ConfigProxy(load_config())
