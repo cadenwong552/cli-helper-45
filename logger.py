@@ -1,28 +1,41 @@
+import sys
 import datetime
-import typing
+from typing import Any
 
 class GameLogger:
-    """Custom logger for gaming cli telemetry."""
-    
-    def __init__(self, prefix: str = "[GAMER-45]") -> None:
-        self.prefix: str = prefix
+    """Colorful terminal output for gaming CLI ops."""
+    COLORS = {
+        "info": "\033[94m",
+        "success": "\033[92m",
+        "warn": "\033[93m",
+        "error": "\033[91m",
+        "reset": "\033[0m"
+    }
 
-    def log(self, message: str, level: str = "INFO") -> None:
-        """Formats and prints event logs to stdout."""
-        timestamp: str = datetime.datetime.now().strftime("%H:%M:%S")
-        formatted: str = f"{self.prefix} {timestamp} | {level} | {message}"
-        print(formatted)
+    def __init__(self, debug_mode: bool = False):
+        self.debug_mode = debug_mode
 
-    def debug_frame(self, frame_data: typing.Dict[str, float]) -> None:
-        """Visual representation of frame timings for debugging."""
-        bar: str = "|" * int(frame_data.get("ms", 0))
-        self.log(f"FPS_FRAME_TIME: {bar} {frame_data.get('ms')}ms", "DEBUG")
+    def _log(self, level: str, message: str) -> None:
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        color = self.COLORS.get(level, self.COLORS["reset"])
+        print(f"{timestamp} [{color}{level.upper()}{self.COLORS['reset']}] {message}")
 
-    def alert_critical(self, error: Exception) -> typing.NoReturn:
-        """Raises exception after logging internal error state."""
-        self.log(f"CRITICAL_FAIL: {str(error)}", "FATAL")
-        raise error
+    def info(self, msg: str) -> None:
+        self._log("info", msg)
 
-def get_logger(name: str = "default") -> GameLogger:
-    """Factory function for consistent logger instantiation."""
-    return GameLogger(f"[{name.upper()}]")
+    def success(self, msg: str) -> None:
+        self._log("success", msg)
+
+    def warn(self, msg: str) -> None:
+        self._log("warn", msg)
+
+    def error(self, msg: str) -> None:
+        self._log("error", msg)
+
+    def quirk(self, msg: Any) -> None:
+        """Specialized output for quirky developer diagnostics."""
+        if self.debug_mode:
+            print(f"\033[35m[DEV-QUIRK] {msg}{self.COLORS['reset']}")
+
+# Global instance for quick gaming CLI access
+game_logger = GameLogger()
